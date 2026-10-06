@@ -42,3 +42,5 @@ secrets.yml
 
 .idea
 .env
+
+!gradle/wrapper/gradle-wrapper.jar
