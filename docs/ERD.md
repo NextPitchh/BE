@@ -146,7 +146,7 @@ erDiagram
         varchar half PK
         smallint out_count PK
         varchar base_state PK
-        smallint score_diff PK "공격팀 관점, -15~15"
+        smallint score_diff PK "공격팀 관점, -4~4 (±4 로 잘라서 조회)"
         real we "공격팀 관점"
         real leverage_index
     }
@@ -177,7 +177,7 @@ erDiagram
 | pitcher_game_stats | ⬜ |  | /recommend |
 | batter_game_stats | ⬜ |  | 타자 카드 |
 | matchups | ⬜ || /recommend, 타자 카드 |
-| we_li_table | ⬜ | 약 1.3만  | /simulate-pa, /advance-half |
+| we_li_table | ✅ 05 | 3,888 | /simulate-pa, /advance-half |
 | li_percentile | ⬜ | 1,001 | /recommend |
 | bandit_scores | ⬜ | | /recommend (분기 전) |
 
