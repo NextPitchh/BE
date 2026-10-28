@@ -69,7 +69,14 @@ jobs:
             # 3. 새 컨테이너 실행
             #    -p 8080:8080 : EC2 8080 → 컨테이너 8080 (Nginx가 여기로 넘겨줌)
             #    --restart unless-stopped : 서버 재부팅돼도 자동 재시작
-            docker run -d --name $CONTAINER -p 8080:8080 --restart unless-stopped $IMAGE
+            #    --env-file : RDS 접속 정보 (GitHub Secrets). application.yaml 의 기본값(로컬 DB)을 덮어쓴다
+            #      Secret 이 등록 안 됐으면 그 줄을 아예 쓰지 않는다. 빈 값("")을 넘기면 스프링이 시작하지 못한다.
+            ENV_FILE=$HOME/nemosdream-be.env
+            install -m 600 /dev/null $ENV_FILE
+            if [ -n '${{ secrets.DB_URL }}' ]; then echo 'DB_URL=${{ secrets.DB_URL }}' >> $ENV_FILE; fi
+            if [ -n '${{ secrets.DB_USERNAME }}' ]; then echo 'DB_USERNAME=${{ secrets.DB_USERNAME }}' >> $ENV_FILE; fi
+            if [ -n '${{ secrets.DB_PASSWORD }}' ]; then echo 'DB_PASSWORD=${{ secrets.DB_PASSWORD }}' >> $ENV_FILE; fi
+            docker run -d --name $CONTAINER -p 8080:8080 --restart unless-stopped --env-file $ENV_FILE $IMAGE
 
             # 4. 안 쓰는 이미지 정리 (EC2 디스크 꽉 차는 것 방지)
             docker image prune -af
