@@ -166,20 +166,20 @@ erDiagram
 
 ## 테이블별 상태와 담당
 
-| 테이블 | 상태 | 행 수 | 담당 | 쓰는 API |
+| 테이블 | 상태 | 행 수| 쓰는 API |
 |---|---|---|---|---|
-| teams | ✅ 01 | 10 | 변희민 | /teams |
-| players | ✅ 01·02 | 600 | 변희민 | 전부 |
-| games | ✅ 03 | 720 (서비스 714) | 변희민 | /games |
-| game_pa | ✅ 03 | 55,267 | 변희민 | /sessions, /recommend, /advance-half, /we-trace |
-| game_bullpen | ✅ 04 | 19,592 | 변희민 | /recommend |
-| game_batting_order | ✅ 04 | 16,321 | 변희민 | /sessions, /simulate-pa |
-| pitcher_game_stats | ⬜ | | 변희민 (윤서현 위임 가능) | /recommend |
-| batter_game_stats | ⬜ | | 변희민 | 타자 카드 |
-| matchups | ⬜ | | 변희민 | /recommend, 타자 카드 |
-| we_li_table | ⬜ | 약 1.3만 | 변희민 | /simulate-pa, /advance-half |
-| li_percentile | ⬜ | 1,001 | 변희민 | /recommend |
-| bandit_scores | ⬜ | | 윤서현 | /recommend (분기 전) |
+| teams | ✅ 01 | 10  | /teams |
+| players | ✅ 01·02 | 600  | 전부 |
+| games | ✅ 03 | 720 (서비스 714) | /games |
+| game_pa | ✅ 03 | 55,267  | /sessions, /recommend, /advance-half, /we-trace |
+| game_bullpen | ✅ 04 | 19,592  | /recommend |
+| game_batting_order | ✅ 04 | 16,321  | /sessions, /simulate-pa |
+| pitcher_game_stats | ⬜ |  | /recommend |
+| batter_game_stats | ⬜ |  | 타자 카드 |
+| matchups | ⬜ || /recommend, 타자 카드 |
+| we_li_table | ⬜ | 약 1.3만  | /simulate-pa, /advance-half |
+| li_percentile | ⬜ | 1,001 | /recommend |
+| bandit_scores | ⬜ | | /recommend (분기 전) |
 
 ## 시점 t 에서 자주 쓰는 조회
 
