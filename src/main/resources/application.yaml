@@ -1,6 +1,21 @@
 spring:
   application:
     name: be
+  # 값은 환경변수로 덮어쓴다 (EC2: DB_URL, DB_USERNAME, DB_PASSWORD). 기본값 = 로컬 docker-compose DB.
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/kmoneyball}
+    username: ${DB_USERNAME:kmb}
+    password: ${DB_PASSWORD:kmb}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none        # 테이블은 etl/schema/*.sql 로 만든다. JPA 가 건드리지 않게.
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    properties:
+      hibernate:
+        # 시작할 때 DB 에 접속하지 않는다. DB 가 없어도 서버는 뜨고(/health OK) 쿼리할 때만 실패한다.
+        # CI(DB 없음)와, EC2 에 아직 DB 가 없는 동안의 CD 배포가 깨지지 않게 하기 위함.
+        boot.allow_jdbc_metadata_access: false
   jackson:
     # 명세의 JSON 키가 전부 snake_case (game_id, start_inning ...). 자바 필드는 camelCase 로 쓴다.
     property-naming-strategy: SNAKE_CASE
