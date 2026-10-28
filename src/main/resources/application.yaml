@@ -1,4 +1,25 @@
 spring:
   application:
     name: be
+  jackson:
+    # 명세의 JSON 키가 전부 snake_case (game_id, start_inning ...). 자바 필드는 camelCase 로 쓴다.
+    property-naming-strategy: SNAKE_CASE
 
+server:
+  # EC2 에서 Nginx(HTTPS) 뒤에 있을 때 원래 주소(https://도메인)를 알아내기 위함.
+  # 없으면 Swagger 의 "Try it out" 이 http:// 로 요청해서 막힌다.
+  forward-headers-strategy: framework
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html          # → /swagger-ui/index.html 로 이동
+    tags-sorter: alpha
+    operations-sorter: method
+  default-produces-media-type: application/json
+
+app:
+  cors:
+    allowed-origins:
+      - https://nemosdream.vercel.app
+      - http://localhost:5173
+      - http://localhost:3000
