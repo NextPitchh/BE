@@ -38,3 +38,20 @@ app:
       - https://nemosdream.vercel.app
       - http://localhost:5173
       - http://localhost:3000
+
+  # GET /config 응답. LI 는 리그 평균 = 1.0 으로 정규화된 값 (li_baseline.json).
+  # max(LI_max) 와 밴드 경계는 추후 논의필요 — 확정되면 여기만 고쳐야 함.
+  client-config:
+    leverage:
+      league-avg: 1.0
+      max: 5.0
+      bands:
+        - { label: "저", min: 0.0, max: 0.85 }
+        - { label: "중", min: 0.85, max: 1.5 }
+        - { label: "고", min: 1.5, max: 3.0 }
+        - { label: "매우 높음", min: 3.0, max: 5.0 }
+    model:
+      score-unit: wpa_per_pa
+      description: "Contextual Bandit 예상 성과. 투수 관점, 높을수록 좋음"
+      provisional: true       # 밴딧(B1) 점수가 들어오면 false
+    li-source-note: "상황 중요도. 문형우 외(2016) 승리확률 테이블 기반"
