@@ -151,8 +151,8 @@ erDiagram
         real leverage_index
     }
     li_percentile {
-        real li_value PK "0.00~10.00, 0.01 간격"
-        smallint percentile "train 구간 분포 기준"
+        numeric li_value PK "0.00~10.00, 0.01 간격"
+        smallint percentile "bandit train 구간(2016~2023) 타석 중 LI 가 더 낮은 비율"
     }
     bandit_scores {
         varchar game_id PK,FK
@@ -178,7 +178,7 @@ erDiagram
 | batter_game_stats | ⬜ |  | 타자 카드 |
 | matchups | ⬜ || /recommend, 타자 카드 |
 | we_li_table | ✅ 05 | 3,888 | /simulate-pa, /advance-half |
-| li_percentile | ⬜ | 1,001 | /recommend |
+| li_percentile | ✅ 06 | 1,001 | /recommend |
 | bandit_scores | ⬜ | | /recommend (분기 전) |
 
 ## 시점 t 에서 자주 쓰는 조회
