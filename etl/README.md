@@ -23,6 +23,7 @@ docker compose up -d
 | 3 | `03_games_pa.py` | `output/games.csv`, `output/game_pa.csv` | `all_pa_with_li.parquet` + `pbp_full/2025` 중계 문구 |
 | 4 | `04_bullpen_lineup.py` | `output/game_bullpen.csv`, `output/game_batting_order.csv` | `all_game_bullpen.parquet` + game_pa.csv + preview 포지션 |
 | 5 | `05_we_li_table.py` | `output/we_li_table.csv` (상황 → WE·LI, 3,888행) | `kbo-pitcher-change-ai-` 의 WE·LI 계산 함수 |
+| 6 | `06_li_percentile.py` | `output/li_percentile.csv` (LI → 리그 백분위, 1,001행) | `all_pa_with_li.parquet` + `bandit_game_split.csv` (train 경기만) |
 | - | `load.sh` | DB 테이블 생성 + CSV 적재 | `output/*.csv`, `schema/*.sql` |
 
 ```bash
@@ -31,6 +32,7 @@ python etl/02_player_photos.py          # 600명, 약 2~3분
 python etl/03_games_pa.py               # 약 5초
 python etl/04_bullpen_lineup.py
 python etl/05_we_li_table.py            # 2025 실제 타석 WE·LI 와 전부 일치하는지 검증까지
+python etl/06_li_percentile.py          # 다른 단계와 독립
 DATABASE_URL=postgresql://kmb:kmb@localhost:5433/kmoneyball bash etl/load.sh
 ```
 
@@ -51,3 +53,6 @@ DATABASE_URL=postgresql://kmb:kmb@localhost:5433/kmoneyball bash etl/load.sh
 - 2025 원본에는 **공 없이 선언된 자동 고의4구 타석이 없다** (크롤러가 투구 이벤트만 줄로 만든다). 93건 추정.
   그래서 타순은 타석 수가 아니라 선수 기준으로 계산한다.
 - `game_pa.is_partial_pa` = 끝나지 않은 타석(타석 중 투수 교체·대타, 주자 아웃으로 이닝 종료). 결과를 보여주지 않는다.
+- `li_percentile` 은 bandit **train 구간(2016~2023)** 타석의 LI 분포로 만든다. 서비스 대상인 2025 는 test 구간이라
+  기준 분포에 넣지 않는다 (quality_p 와 같은 원칙). 백분위 = ⌊100 × (LI 가 그 값보다 낮은 타석 비율)⌋,
+  화면의 "리그 상위 X%" 는 `100 - 백분위` (최댓값 LI 9.79 도 99 → "상위 1%").
