@@ -22,6 +22,7 @@ docker compose up -d
 | 2 | `02_player_photos.py` | `output/players/{id}.webp`, players.csv 의 `photo_url` | 네이버 선수 사진 |
 | 3 | `03_games_pa.py` | `output/games.csv`, `output/game_pa.csv` | `all_pa_with_li.parquet` + `pbp_full/2025` 중계 문구 |
 | 4 | `04_bullpen_lineup.py` | `output/game_bullpen.csv`, `output/game_batting_order.csv` | `all_game_bullpen.parquet` + game_pa.csv + preview 포지션 |
+| 5 | `05_we_li_table.py` | `output/we_li_table.csv` (상황 → WE·LI, 3,888행) | `kbo-pitcher-change-ai-` 의 WE·LI 계산 함수 |
 | - | `load.sh` | DB 테이블 생성 + CSV 적재 | `output/*.csv`, `schema/*.sql` |
 
 ```bash
@@ -29,6 +30,7 @@ python etl/01_teams_players.py
 python etl/02_player_photos.py          # 600명, 약 2~3분
 python etl/03_games_pa.py               # 약 5초
 python etl/04_bullpen_lineup.py
+python etl/05_we_li_table.py            # 2025 실제 타석 WE·LI 와 전부 일치하는지 검증까지
 DATABASE_URL=postgresql://kmb:kmb@localhost:5433/kmoneyball bash etl/load.sh
 ```
 
@@ -44,6 +46,8 @@ DATABASE_URL=postgresql://kmb:kmb@localhost:5433/kmoneyball bash etl/load.sh
   `OUT` 으로 잘못 들어간 "스트라이크 낫 아웃"을 `SO` 로 바꾼다. 원래 값은 `result_raw` 에 남는다.
   `SF`(희생플라이), `UNK`(결과 불명)는 명세 9종에 없어 API 에서 어떻게 보낼지 정해야 한다.
 - `we_before`/`we_after` 는 공격팀 관점(Option B) 그대로 저장한다. my_team 관점 변환은 API 책임이다.
+- `we_li_table` 은 파이썬 원본 함수로 미리 계산한 표다. 서버는 WE·LI 를 직접 계산하지 않고 이 표에서 찾는다
+  (점수차는 ±4 로 잘라서 조회 — 원본 WE 테이블 범위). 원본 계산이 바뀌면 05 를 다시 돌려 적재한다.
 - 2025 원본에는 **공 없이 선언된 자동 고의4구 타석이 없다** (크롤러가 투구 이벤트만 줄로 만든다). 93건 추정.
   그래서 타순은 타석 수가 아니라 선수 기준으로 계산한다.
 - `game_pa.is_partial_pa` = 끝나지 않은 타석(타석 중 투수 교체·대타, 주자 아웃으로 이닝 종료). 결과를 보여주지 않는다.
