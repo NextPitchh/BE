@@ -24,6 +24,7 @@ docker compose up -d
 | 4 | `04_bullpen_lineup.py` | `output/game_bullpen.csv`, `output/game_batting_order.csv` | `all_game_bullpen.parquet` + game_pa.csv + preview 포지션 |
 | 5 | `05_we_li_table.py` | `output/we_li_table.csv` (상황 → WE·LI, 3,888행) | `kbo-pitcher-change-ai-` 의 WE·LI 계산 함수 |
 | 6 | `06_li_percentile.py` | `output/li_percentile.csv` (LI → 리그 백분위, 1,001행) | `all_pa_with_li.parquet` + `bandit_game_split.csv` (train 경기만) |
+| 7 | `07_pitcher_game_stats.py` | `output/pitcher_game_stats.csv` (경기 전 투수 카드 기록, 19,592행) | `all_pitcher_history.parquet`, `prior_wpa_optionb.parquet` + game_pa.csv·game_bullpen.csv |
 | - | `load.sh` | DB 테이블 생성 + CSV 적재 | `output/*.csv`, `schema/*.sql` |
 
 ```bash
@@ -33,6 +34,7 @@ python etl/03_games_pa.py               # 약 5초
 python etl/04_bullpen_lineup.py
 python etl/05_we_li_table.py            # 2025 실제 타석 WE·LI 와 전부 일치하는지 검증까지
 python etl/06_li_percentile.py          # 다른 단계와 독립
+python etl/07_pitcher_game_stats.py     # 04 다음. quality_p 가 데이터셋과 같은지 검증까지
 DATABASE_URL=postgresql://kmb:kmb@localhost:5433/kmoneyball bash etl/load.sh
 ```
 
@@ -56,3 +58,6 @@ DATABASE_URL=postgresql://kmb:kmb@localhost:5433/kmoneyball bash etl/load.sh
 - `li_percentile` 은 bandit **train 구간(2016~2023)** 타석의 LI 분포로 만든다. 서비스 대상인 2025 는 test 구간이라
   기준 분포에 넣지 않는다 (quality_p 와 같은 원칙). 백분위 = ⌊100 × (LI 가 그 값보다 낮은 타석 비율)⌋,
   화면의 "리그 상위 X%" 는 `100 - 백분위` (최댓값 LI 9.79 도 99 → "상위 1%").
+- `pitcher_game_stats` 는 **그 경기 전까지** 기록만 쓴다 (더블헤더 2차전은 1차전 포함). 시즌 기록·좌우 성적·피로도는
+  2025 시즌, quality 는 2016~ 통산이다. 카드는 "구원으로 넣으면" 정보라 선발 투수도 불펜 quality 공식을 쓴다.
+  ERA 는 원본에 자책점 구분이 없어 만들지 않는다. 이닝은 타석 결과로 잡은 아웃만 세서 도루저지·견제사 아웃만큼 조금 적다.

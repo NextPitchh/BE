@@ -17,6 +17,8 @@ PBP_DIR = CRAWLER_DATA / "pbp_full"
 MODEL_REPO = GRADPROJECT / "kbo-pitcher-change-ai-"
 PA_PARQUET = MODEL_REPO / "data_analysis" / "results" / "all_pa_with_li.parquet"
 BULLPEN_PARQUET = MODEL_REPO / "data_analysis" / "all_game_bullpen.parquet"
+PITCHER_HISTORY_PARQUET = MODEL_REPO / "data_analysis" / "all_pitcher_history.parquet"   # 등판 단위 기록 (2016~2025)
+PRIOR_WPA_OPTIONB_PARQUET = MODEL_REPO / "data_analysis" / "results" / "prior_wpa_optionb.parquet"
 
 # 서비스 대상 시즌 (명세 v0.3: 2025 시즌 리플레이)
 SEASON = "2025"

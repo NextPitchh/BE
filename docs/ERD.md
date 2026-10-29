@@ -103,22 +103,29 @@ erDiagram
     pitcher_game_stats {
         varchar game_id PK,FK
         int pitcher_id PK,FK
-        real era "불펜 NULL 검토"
-        real whip
-        real ip
+        smallint g "이하 그 경기 전 2025 시즌 누적"
+        smallint outs "이닝 = outs / 3"
         smallint so
-        smallint bb
-        smallint g
+        smallint bb "사구 제외"
+        smallint hbp
+        smallint h
+        smallint hr
+        real whip "ERA 는 없음 (자책점 구분 불가)"
+        smallint vs_l_pa
         real vs_l_avg
         real vs_l_woba
+        real vs_l_iso
+        smallint vs_r_pa
         real vs_r_avg
         real vs_r_woba
+        real vs_r_iso
         real avg_pitches_per_pa
-        smallint days_rest
+        smallint days_rest "어제 던졌으면 0"
+        smallint consecutive_days
         smallint appearances_last_7d
         smallint pitches_last_3d
-        real quality_p
-        smallint quality_percentile
+        real quality_p "불펜 공식, 2016~ 통산"
+        smallint quality_percentile "round(quality_p x 50)"
     }
     batter_game_stats {
         varchar game_id PK,FK
@@ -174,7 +181,7 @@ erDiagram
 | game_pa | ✅ 03 | 55,267  | /sessions, /recommend, /advance-half, /we-trace |
 | game_bullpen | ✅ 04 | 19,592  | /recommend |
 | game_batting_order | ✅ 04 | 16,321  | /sessions, /simulate-pa |
-| pitcher_game_stats | ⬜ |  | /recommend |
+| pitcher_game_stats | ✅ 07 | 19,592 | /recommend |
 | batter_game_stats | ⬜ |  | 타자 카드 |
 | matchups | ⬜ || /recommend, 타자 카드 |
 | we_li_table | ✅ 05 | 3,888 | /simulate-pa, /advance-half |
