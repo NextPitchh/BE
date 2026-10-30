@@ -62,3 +62,12 @@ app:
   matchup:
     league-woba: 0.2924     # handedness_baseline.json 의 _GLOBAL wOBA
     margin: 0.015
+
+  # 타석 결과 주사위 (log5). CatBoost(Flask /predict-pa)가 준비되면 그쪽으로 바꾸고 log5 는 예비용으로 남긴다.
+  simulation:
+    log5-k: 200             # 선수 비율을 리그 쪽으로 당기는 가상 타석 수. 2025 검증 log loss 최소 (etl/10_outcome_counts.py)
+    league-season: "2024"   # league_outcome_rates 기준 시즌
+
+  # 시뮬레이션 세션 (서버 메모리). 마지막 요청 후 ttl 이 지나면 만료 → SESSION_EXPIRED (명세 §3-4)
+  session:
+    ttl: 30m

@@ -34,7 +34,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleBodyValidation(MethodArgumentNotValidException e) {
         FieldError field = e.getBindingResult().getFieldError();
         String message = field == null ? ErrorCode.INVALID_REQUEST.message()
-                : field.getField() + ": " + field.getDefaultMessage();
+                : toSnakeCase(field.getField()) + ": " + field.getDefaultMessage();
         return respond(ErrorCode.INVALID_REQUEST, message);
     }
 
@@ -82,5 +82,10 @@ public class GlobalExceptionHandler {
 
     private ResponseEntity<ErrorResponse> respond(ErrorCode code, String message) {
         return ResponseEntity.status(code.status()).body(ErrorResponse.of(code, message));
+    }
+
+    /** 요청 JSON 은 snake_case 라서 오류 메시지의 필드 이름도 맞춘다 (startInning → start_inning) */
+    private static String toSnakeCase(String field) {
+        return field.replaceAll("([a-z0-9])([A-Z])", "$1_$2").toLowerCase();
     }
 }
