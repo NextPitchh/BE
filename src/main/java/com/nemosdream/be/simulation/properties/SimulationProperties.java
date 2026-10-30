@@ -7,7 +7,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *
  * @param log5K           선수 비율을 리그 쪽으로 당기는 강도 (가상 타석 수)
  * @param leagueSeason    log5 리그 기준 시즌 (league_outcome_rates.season)
+ * @param defaultPitchesPerPa 분기 후 투구 수를 늘릴 때, 투수의 시즌 타석당 투구 수가 없으면 쓰는 값
  */
 @ConfigurationProperties(prefix = "app.simulation")
-public record SimulationProperties(double log5K, String leagueSeason) {
+public record SimulationProperties(double log5K, String leagueSeason, double defaultPitchesPerPa) {
 }

@@ -67,6 +67,7 @@ app:
   simulation:
     log5-k: 200             # 선수 비율을 리그 쪽으로 당기는 가상 타석 수. 2025 검증 log loss 최소 (etl/10_outcome_counts.py)
     league-season: "2024"   # league_outcome_rates 기준 시즌
+    default-pitches-per-pa: 3.9   # 시즌 기록이 없는 투수의 타석당 투구 수 (리그 평균 약 3.9)
 
   # 시뮬레이션 세션 (서버 메모리). 마지막 요청 후 ttl 이 지나면 만료 → SESSION_EXPIRED (명세 §3-4)
   session:

@@ -1,6 +1,7 @@
 package com.nemosdream.be.session.domain;
 
 import com.nemosdream.be.simulation.domain.Bases;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -8,6 +9,7 @@ import java.util.Map;
  *
  * @param nextActualPaIndex 분기 전: 다음 실제 타석 번호 (game_pa.pa_index). 분기 후 null
  * @param divergedAt        분기 전이면 null
+ * @param decisions         지금까지 사용자의 투수 선택 (되돌리면 같이 되돌아간다)
  */
 public record SimState(
         int inning,
@@ -23,12 +25,14 @@ public record SimState(
         Map<Integer, BatterDay> batterDays,
         Integer nextActualPaIndex,
         DivergedAt divergedAt,
-        boolean gameOver
+        boolean gameOver,
+        List<Decision> decisions
 ) {
 
     public SimState {
         pitcherDays = Map.copyOf(pitcherDays);
         batterDays = Map.copyOf(batterDays);
+        decisions = List.copyOf(decisions);
     }
 
     public TeamSide batting() {

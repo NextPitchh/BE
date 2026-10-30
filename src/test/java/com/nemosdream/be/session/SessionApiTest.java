@@ -28,10 +28,12 @@ import org.springframework.test.web.servlet.ResultActions;
         "file:etl/schema/06_pitcher_game_stats.sql",
         "file:etl/schema/07_batter_game_stats.sql",
         "file:etl/schema/08_matchups.sql",
+        "file:etl/schema/09_outcome_counts.sql",
         "classpath:sql/fixture-session.sql",
         "classpath:sql/fixture-we-li.sql"
 })
-@Sql(statements = "DROP TABLE IF EXISTS matchups, batter_game_stats, pitcher_game_stats, we_li_table, game_bullpen, "
+@Sql(statements = "DROP TABLE IF EXISTS outcome_counts, league_outcome_rates, matchups, batter_game_stats, "
+        + "pitcher_game_stats, we_li_table, game_bullpen, "
         + "game_batting_order, game_pa, games, players, teams CASCADE",
         executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD)
 class SessionApiTest extends PostgresTestSupport {
@@ -117,6 +119,76 @@ class SessionApiTest extends PostgresTestSupport {
                 {"game_id": "20250601HHKT02025", "my_team": "KT", "start_inning": 4}""")
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.error.message").value("start_inning: start_inning 은 5~9 입니다."));
+    }
+
+    @Test
+    void 실제_감독과_같은_투수면_실제_기록을_재생한다() throws Exception {
+        String sid = sessionId();
+        simulate(sid, 60003)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.source").value("actual"))
+                .andExpect(jsonPath("$.result.outcome").value("FO"))
+                .andExpect(jsonPath("$.result.outcome_label").value("플라이 아웃"))
+                .andExpect(jsonPath("$.result.runs_scored").value(0))
+                .andExpect(jsonPath("$.result.probs.SO").exists())
+                .andExpect(jsonPath("$.result.probs.GDP").value(0.0))                // 주자 없음
+                // 공격팀(HH) WE 0.9387 → 0.955
+                .andExpect(jsonPath("$.result.delta_we_attacker").value(closeTo(0.0163, 1e-4)))
+                .andExpect(jsonPath("$.result.delta_we_defender").value(closeTo(-0.0163, 1e-4)))
+                .andExpect(jsonPath("$.result.next_state.out_count").value(1))
+                .andExpect(jsonPath("$.result.next_state.is_diverged").value(false))
+                .andExpect(jsonPath("$.result.next_state.current_pitcher.pitcher_id").value(60003))
+                .andExpect(jsonPath("$.result.next_state.current_pitcher.workload.est_pitch_count").value(4))
+                // 다음 실제 타석에 대타(51009)가 나왔으므로 재생 후에는 대타가 현재 타자
+                .andExpect(jsonPath("$.result.next_state.current_batter.batter_id").value(51009))
+                .andExpect(jsonPath("$.result.next_state.current_batter.order").value(5))
+                .andExpect(jsonPath("$.result.next_state.can_undo").value(true));
+    }
+
+    @Test
+    void 실제와_다른_투수를_고르면_분기하고_주사위로_진행한다() throws Exception {
+        String sid = sessionId();
+        // 실제 감독은 60003 으로 바꿨는데 현재 투수 60002 를 유지
+        simulate(sid, 60002)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.result.source").value("simulated"))
+                .andExpect(jsonPath("$.result.next_state.is_diverged").value(true))
+                .andExpect(jsonPath("$.result.next_state.diverged_at.inning").value(5))
+                .andExpect(jsonPath("$.result.next_state.diverged_at.half").value("top"))
+                .andExpect(jsonPath("$.result.next_state.diverged_at.pa_index").value(6))
+                .andExpect(jsonPath("$.result.next_state.current_pitcher.workload.pa_faced_today").value(2));
+        // 분기 후에는 계속 주사위, 다른 불펜 투수로 교체 가능
+        simulate(sid, 60004)
+                .andExpect(jsonPath("$.result.source").value("simulated"))
+                .andExpect(jsonPath("$.result.next_state.diverged_at.pa_index").value(6));
+    }
+
+    @Test
+    void 나올_수_없는_투수는_거절한다() throws Exception {
+        String sid = sessionId();
+        simulate(sid, 60001)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.message").value("이미 등판한 투수는 다시 나올 수 없습니다: 60001"));
+        simulate(sid, 61001)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INVALID_REQUEST"));
+        mockMvc.perform(post("/api/v1/sessions/s_없음/simulate-pa").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"pitcher_id\": 60003}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.error.code").value("SESSION_EXPIRED"));
+    }
+
+    private String sessionId() throws Exception {
+        String body = create("""
+                {"game_id": "20250601HHKT02025", "my_team": "KT", "start_inning": 5}""")
+                .andReturn().getResponse().getContentAsString();
+        return com.jayway.jsonpath.JsonPath.read(body, "$.state.session_id");
+    }
+
+    private ResultActions simulate(String sessionId, int pitcherId) throws Exception {
+        return mockMvc.perform(post("/api/v1/sessions/" + sessionId + "/simulate-pa")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"pitcher_id\": " + pitcherId + "}"));
     }
 
     private ResultActions create(String body) throws Exception {
