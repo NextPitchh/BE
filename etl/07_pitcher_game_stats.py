@@ -33,6 +33,8 @@ from datetime import date, timedelta
 import numpy as np
 import pandas as pd
 
+from common import AB_RESULTS, HIT_RESULTS, PA_RESULTS, W_1B, W_2B, W_3B, W_BB, W_HR, order_key
+from common import asof_prior as _asof_prior
 from config import MODEL_REPO, OUTPUT_DIR, PITCHER_HISTORY_PARQUET, PRIOR_WPA_OPTIONB_PARQUET, SEASON
 
 sys.path.insert(0, str(MODEL_REPO))
@@ -40,27 +42,11 @@ from data_analysis.methods.pitcher_quality import (  # noqa: E402
     BASELINE_PATH_BULLPEN, apply_shrinkage, load_quality_baseline,
 )
 
-# build_matchup_history.py 와 동일
-W_HR, W_3B, W_2B, W_1B, W_BB = 1.70, 1.37, 1.08, 0.77, 0.62
-AB_RESULTS = {"1B", "2B", "3B", "HR", "SO", "GO", "FO", "OUT", "GDP"}
-HIT_RESULTS = {"1B", "2B", "3B", "HR"}
-PA_RESULTS = AB_RESULTS | {"BB", "SF"}
-
 KEY = ["game_id", "pitcher_id"]
 
 
-def order_key(game_ids):
-    """경기 순서 정수: YYYYMMDD × 10 + 더블헤더 번호 (game_id 13번째 자리, 보통 0)."""
-    return game_ids.str[:8].astype(np.int64) * 10 + game_ids.str[12].astype(np.int64)
-
-
 def asof_prior(rows, events, value_cols):
-    """rows 각 (경기, 투수)에 대해, 그 경기 '전' 마지막 events 행의 누적값을 붙인다. 없으면 0."""
-    left = rows[KEY + ["ok"]].sort_values("ok")
-    right = events[["pitcher_id", "ok"] + value_cols].sort_values("ok")
-    m = pd.merge_asof(left, right, on="ok", by="pitcher_id", allow_exact_matches=False)
-    m[value_cols] = m[value_cols].fillna(0)
-    return m[KEY + value_cols]
+    return _asof_prior(rows, events, value_cols, by="pitcher_id")
 
 
 # ── 등판 단위 (2016~2025) ───────────────────────────────────────────────
