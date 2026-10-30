@@ -1,6 +1,7 @@
 package com.nemosdream.be.pitcher.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.nemosdream.be.global.util.Decimals;
 import com.nemosdream.be.pitcher.entity.PitcherGameStats;
 
 /**
@@ -14,7 +15,7 @@ public record Fatigue(Double avgPitchesPerPa, Integer daysRest, int consecutiveD
                       @JsonProperty("pitches_last_3d") int pitchesLast3d) {
 
     public static Fatigue from(PitcherGameStats s) {
-        return new Fatigue(SeasonStats.toDouble(s.getAvgPitchesPerPa()),
+        return new Fatigue(Decimals.round3(s.getAvgPitchesPerPa()),
                 s.getDaysRest() == null ? null : s.getDaysRest().intValue(),
                 s.getConsecutiveDays(), s.getAppearancesLast7d(), s.getPitchesLast3d());
     }

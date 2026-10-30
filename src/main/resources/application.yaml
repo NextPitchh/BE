@@ -55,3 +55,10 @@ app:
       description: "Contextual Bandit 예상 성과. 투수 관점, 높을수록 좋음"
       provisional: true       # 밴딧(B1) 점수가 들어오면 false
     li-source-note: "상황 중요도. 문형우 외(2016) 승리확률 테이블 기반"
+
+  # 교체 후보의 matchup_vs_batter (명세 §2-2) 판정 기준. 투수 관점.
+  # 상대 wOBA(좌우 기준값으로 보정된 값)가 리그 평균보다 margin 이상 낮으면 favorable, 높으면 unfavorable.
+  # 임시값 — 기준은 회의 안건(명세 §9 #7). 2025 조합 기준 favorable 32% / neutral 44% / unfavorable 24%.
+  matchup:
+    league-woba: 0.2924     # handedness_baseline.json 의 _GLOBAL wOBA
+    margin: 0.015

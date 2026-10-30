@@ -130,23 +130,32 @@ erDiagram
     batter_game_stats {
         varchar game_id PK,FK
         int batter_id PK,FK
+        smallint pa "이하 그 경기 전 2025 시즌 누적"
+        smallint ab
+        smallint h
+        smallint hr
+        smallint bb "사구·고의4구 포함"
+        smallint sf
+        smallint tb
         real avg
         real obp
         real slg
         real ops
-        smallint hr
-        real recent_avg
+        smallint recent_ab "직전 10경기"
+        real recent_avg "직전 10경기 타율"
     }
     matchups {
         varchar game_id PK,FK
         int pitcher_id PK,FK
         int batter_id PK,FK
+        varchar handedness_key "R_L 등. 이하 그 경기 전 2016~ 통산"
+        smallint pa "0 = 첫 대결"
         smallint ab
         smallint h
-        real avg
-        real woba_shrunk
-        real iso_shrunk
-        varchar matchup_label "favorable neutral unfavorable"
+        real avg "보정 없음"
+        real woba "좌우 기준값으로 당긴 값 (matchup_woba_shrunk)"
+        real iso "matchup_iso_shrunk"
+        real base_woba "좌우 기준 wOBA"
     }
     we_li_table {
         smallint inning PK
@@ -182,8 +191,8 @@ erDiagram
 | game_bullpen | ✅ 04 | 19,592  | /recommend |
 | game_batting_order | ✅ 04 | 16,321  | /sessions, /simulate-pa |
 | pitcher_game_stats | ✅ 07 | 19,592 | /recommend |
-| batter_game_stats | ⬜ |  | 타자 카드 |
-| matchups | ⬜ || /recommend, 타자 카드 |
+| batter_game_stats | ✅ 08 | 16,321 | 타자 카드 |
+| matchups | ✅ 09 | 222,468 | /recommend, 타자 카드 |
 | we_li_table | ✅ 05 | 3,888 | /simulate-pa, /advance-half |
 | li_percentile | ✅ 06 | 1,001 | /recommend |
 | bandit_scores | ⬜ | | /recommend (분기 전) |
