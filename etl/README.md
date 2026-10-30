@@ -27,6 +27,7 @@ docker compose up -d
 | 7 | `07_pitcher_game_stats.py` | `output/pitcher_game_stats.csv` (경기 전 투수 카드 기록, 19,592행) | `all_pitcher_history.parquet`, `prior_wpa_optionb.parquet` + game_pa.csv·game_bullpen.csv |
 | 8 | `08_batter_game_stats.py` | `output/batter_game_stats.csv` (경기 전 타자 카드 기록, 16,321행) | game_pa.csv·game_batting_order.csv |
 | 9 | `09_matchups.py` | `output/matchups.csv` (경기 전 투수 × 상대 타자 전적, 222,468행) | `all_pa_enriched_v3_1.parquet`, `handedness_baseline.json` + game_bullpen·game_batting_order·players |
+| 10 | `10_outcome_counts.py` | `output/outcome_counts.csv`, `output/league_outcome_rates.csv` (log5 주사위 재료) | game_pa.csv + 2024 원본(리그 기준) |
 | - | `load.sh` | DB 테이블 생성 + CSV 적재 | `output/*.csv`, `schema/*.sql` |
 
 ```bash
@@ -39,6 +40,7 @@ python etl/06_li_percentile.py          # 다른 단계와 독립
 python etl/07_pitcher_game_stats.py     # 04 다음. quality_p 가 데이터셋과 같은지 검증까지
 python etl/08_batter_game_stats.py      # 04 다음
 python etl/09_matchups.py               # 04 다음. 데이터셋 matchup 값과 같은지 검증까지
+python etl/10_outcome_counts.py         # 04 다음. 2024 중계 문구도 읽어 약 5초. log5 예측 성능 출력
 DATABASE_URL=postgresql://kmb:kmb@localhost:5433/kmoneyball bash etl/load.sh
 ```
 
@@ -71,3 +73,5 @@ DATABASE_URL=postgresql://kmb:kmb@localhost:5433/kmoneyball bash etl/load.sh
   좌우 기준값은 `players` 의 선수별 손 정보로 정한다. 데이터셋 `handedness_key` 는 같은 선수도 타석마다 흔들리는 경우가 있어
   (사이드암을 R/U 로 번갈아 등) 2025 실제 대결의 1.7% 는 데이터셋 `matchup_woba_shrunk` 와 다르다. 유리/불리 판정 기준은
   `application.yaml` 의 `app.matchup` (임시값, 회의 안건).
+- log5 주사위: 선수 비율은 그 경기 전 2025 기록, 리그 기준은 2024 시즌 전체(땅볼/플라이는 03 과 같은 방식으로 2024 중계 문구에서 분류).
+  병살은 1루 주자·0~1아웃일 때만 리그 병살 비율(33.8%)로 땅볼에서 나눈다. 2025 실제 타석 log loss: 리그 비율만 1.804 → log5(k=200) 1.782.

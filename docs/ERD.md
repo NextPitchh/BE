@@ -20,6 +20,8 @@ erDiagram
     games ||--o{ pitcher_game_stats : game_id
     games ||--o{ batter_game_stats : game_id
     games ||--o{ matchups : game_id
+    games ||--o{ outcome_counts : game_id
+    players ||--o{ outcome_counts : player_id
     game_pa ||--o{ bandit_scores : "game_id + pa_index"
     game_bullpen ||--o{ bandit_scores : "후보 = 그 시점 available 투수"
 
@@ -166,6 +168,27 @@ erDiagram
         real we "공격팀 관점"
         real leverage_index
     }
+    outcome_counts {
+        varchar game_id PK,FK
+        int player_id PK,FK
+        char role PK "B 타자 / P 투수"
+        smallint pa "이하 그 경기 전 2025 시즌 누적"
+        smallint c_1b
+        smallint c_2b
+        smallint c_3b
+        smallint c_hr
+        smallint c_bb
+        smallint c_so
+        smallint c_fo "희생플라이 포함"
+        smallint c_gb "땅볼 아웃 + 병살"
+    }
+    league_outcome_rates {
+        varchar season PK "2024"
+        int pa
+        real r_1b "이하 8칸 비율"
+        real r_gb
+        real dp_share "병살 기회 중 땅볼의 병살 비율"
+    }
     li_percentile {
         numeric li_value PK "0.00~10.00, 0.01 간격"
         smallint percentile "bandit train 구간(2016~2023) 타석 중 LI 가 더 낮은 비율"
@@ -195,6 +218,8 @@ erDiagram
 | matchups | ✅ 09 | 222,468 | /recommend, 타자 카드 |
 | we_li_table | ✅ 05 | 3,888 | /simulate-pa, /advance-half |
 | li_percentile | ✅ 06 | 1,001 | /recommend |
+| outcome_counts | ✅ 10 | 35,913 | /simulate-pa, /advance-half (log5 주사위) |
+| league_outcome_rates | ✅ 10 | 1 | 같음 |
 | bandit_scores | ⬜ | | /recommend (분기 전) |
 
 ## 시점 t 에서 자주 쓰는 조회
