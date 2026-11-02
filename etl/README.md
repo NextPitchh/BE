@@ -1,5 +1,7 @@
 # ETL — 서비스 DB 적재용 데이터 생성
 
+CatBoost v6 동결 이력은 별도 스키마·적재 절차를 사용합니다. 기존 `load.sh`를 실행하지 말고 [CatBoost 인계 문서](../docs/catboost-v6-handoff.md)의 검증 및 로컬 테스트 DB 적재 방법을 따르세요.
+
 `KBO_Crawler`(원본)와 `kbo-pitcher-change-ai-`(가공 데이터)를 읽어 PostgreSQL 에 넣을 CSV 를 만든다.
 세 저장소가 같은 상위 폴더(`gradproject/`)에 있다고 가정한다. 다르면 `GRADPROJECT_DIR` 환경변수로 지정한다.
 
