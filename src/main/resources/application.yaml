@@ -67,6 +67,7 @@ app:
   simulation:
     log5-k: 200             # 선수 비율을 리그 쪽으로 당기는 가상 타석 수. 2025 검증 log loss 최소 (etl/10_outcome_counts.py)
     league-season: "2024"   # league_outcome_rates 기준 시즌
+    default-pitches-per-pa: 3.9   # 시즌 기록이 없는 투수의 타석당 투구 수 (리그 평균 약 3.9)
     pa-model: ${PA_MODEL:log5}  # 독립 확률 공급 계층에서만 적용: log5 또는 catboost-v6
 
   ai:

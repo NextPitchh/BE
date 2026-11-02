@@ -115,7 +115,7 @@ public class GameStateAssembler {
         PitcherDay day = s.pitcherDay(pitcherId);
         Fatigue f = card == null ? null : card.fatigue();
         PitcherResponse.Workload workload = new PitcherResponse.Workload(
-                day.paFaced(), day.pitches(),
+                day.paFaced(), (int) Math.round(day.pitches()),
                 f == null ? null : f.avgPitchesPerPa(),
                 f == null ? null : f.daysRest(),
                 f == null ? 0 : f.appearancesLast7d(),

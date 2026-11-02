@@ -2,12 +2,17 @@ package com.nemosdream.be.session.service;
 
 import com.nemosdream.be.game.entity.Game;
 import com.nemosdream.be.game.entity.GameBattingOrder;
+import com.nemosdream.be.game.entity.GameBullpen;
 import com.nemosdream.be.game.repository.GameBattingOrderRepository;
+import com.nemosdream.be.game.repository.GameBullpenRepository;
 import com.nemosdream.be.game.repository.GamePaRepository;
 import com.nemosdream.be.game.repository.GameRepository;
 import com.nemosdream.be.global.error.BusinessException;
 import com.nemosdream.be.global.error.ErrorCode;
+import com.nemosdream.be.session.domain.ActualGame;
+import com.nemosdream.be.session.domain.ActualPa;
 import com.nemosdream.be.session.domain.GameSession;
+import com.nemosdream.be.session.domain.LineupEntry;
 import com.nemosdream.be.session.domain.SimState;
 import com.nemosdream.be.session.dto.CreateSessionRequest;
 import com.nemosdream.be.session.dto.SessionStateResponse;
@@ -19,6 +24,8 @@ import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,14 +38,16 @@ public class SessionService {
     private final GameRepository games;
     private final GamePaRepository gamePas;
     private final GameBattingOrderRepository battingOrders;
+    private final GameBullpenRepository bullpens;
     private final SessionStore store;
     private final GameStateAssembler assembler;
 
     public SessionService(GameRepository games, GamePaRepository gamePas, GameBattingOrderRepository battingOrders,
-                          SessionStore store, GameStateAssembler assembler) {
+                          GameBullpenRepository bullpens, SessionStore store, GameStateAssembler assembler) {
         this.games = games;
         this.gamePas = gamePas;
         this.battingOrders = battingOrders;
+        this.bullpens = bullpens;
         this.store = store;
         this.assembler = assembler;
     }
@@ -60,12 +69,17 @@ public class SessionService {
         }
 
         List<GameBattingOrder> orders = battingOrders.findByGame(game.getId());
-        SimState initial = InitialStateFactory.build(game.getAwayTeam(), game.getHomeTeam(), myTeamIsAway,
-                startInning, gamePas.findByGame(game.getId()), orders);
+        ActualGame actual = new ActualGame(game.getAwayTeam(), game.getHomeTeam(),
+                gamePas.findByGame(game.getId()).stream().map(ActualPa::of).toList(),
+                orders.stream().map(LineupEntry::of).toList());
+        SimState initial = InitialStateFactory.build(actual, myTeamIsAway, startInning);
+        Set<Integer> myBullpen = bullpens.findByGameAndTeam(game.getId(), myTeam).stream()
+                .map(GameBullpen::getPitcherId)
+                .collect(Collectors.toSet());
 
         GameSession session = new GameSession(newSessionId(), game.getId(), game.getDate(), myTeam,
                 myTeamIsAway ? game.getHomeTeam() : game.getAwayTeam(), myTeamIsAway, request.modeOrDefault(),
-                RANDOM.nextLong(), starterPositions(orders), initial, Instant.now());
+                RANDOM.nextLong(), starterPositions(orders), actual, myBullpen, initial, Instant.now());
         store.save(session);
         return new SessionStateResponse(assembler.toResponse(session));
     }

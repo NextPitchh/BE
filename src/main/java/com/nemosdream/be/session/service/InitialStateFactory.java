@@ -1,9 +1,9 @@
 package com.nemosdream.be.session.service;
 
-import com.nemosdream.be.game.entity.GameBattingOrder;
-import com.nemosdream.be.game.entity.GamePa;
 import com.nemosdream.be.global.error.BusinessException;
 import com.nemosdream.be.global.error.ErrorCode;
+import com.nemosdream.be.session.domain.ActualGame;
+import com.nemosdream.be.session.domain.ActualPa;
 import com.nemosdream.be.session.domain.BatterDay;
 import com.nemosdream.be.session.domain.Half;
 import com.nemosdream.be.session.domain.Linescore;
@@ -12,7 +12,6 @@ import com.nemosdream.be.session.domain.SimState;
 import com.nemosdream.be.session.domain.TeamSide;
 import com.nemosdream.be.simulation.domain.Bases;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -33,31 +32,30 @@ public final class InitialStateFactory {
     }
 
     /**
-     * @param pas    그 경기 실제 타석 전부 (pa_index 순)
-     * @param orders 그 경기 타순 기록 전부
+     * @param game 그 경기 실제 기록
      */
-    public static SimState build(String awayTeam, String homeTeam, boolean myTeamIsAway, int startInning,
-                                 List<GamePa> pas, List<GameBattingOrder> orders) {
+    public static SimState build(ActualGame game, boolean myTeamIsAway, int startInning) {
+        List<ActualPa> pas = game.pas();
         Half myDefense = myTeamIsAway ? Half.BOT : Half.TOP;
-        GamePa first = pas.stream()
-                .filter(p -> p.getInning() == startInning && Half.of(p.getHalf()) == myDefense)
+        ActualPa first = pas.stream()
+                .filter(p -> p.inning() == startInning && p.half() == myDefense)
                 .findFirst()
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_REQUEST,
                         startInning + "회에 내 팀 수비 기록이 없습니다."));
-        int t0 = first.getPaIndex();
-        List<GamePa> before = pas.stream().filter(p -> p.getPaIndex() < t0).toList();
+        int t0 = first.paIndex();
+        List<ActualPa> before = pas.stream().filter(p -> p.paIndex() < t0).toList();
 
         Linescore linescore = Linescore.empty();
         int awayHits = 0, homeHits = 0, awayWalks = 0, homeWalks = 0;
         Map<Integer, BatterDay> batterDays = new HashMap<>();
-        for (GamePa p : before) {
-            Half half = Half.of(p.getHalf());
-            linescore = linescore.add(p.getInning(), half, p.getRunsScored());
-            if (p.isPartialPa()) {
+        for (ActualPa p : before) {
+            Half half = p.half();
+            linescore = linescore.add(p.inning(), half, p.runsScored());
+            if (p.partial()) {
                 continue;
             }
-            boolean hit = HITS.contains(p.getResult());
-            boolean walk = "BB".equals(p.getResult());
+            boolean hit = HITS.contains(p.result());
+            boolean walk = "BB".equals(p.result());
             if (half.awayBats()) {
                 awayHits += hit ? 1 : 0;
                 awayWalks += walk ? 1 : 0;
@@ -65,63 +63,56 @@ public final class InitialStateFactory {
                 homeHits += hit ? 1 : 0;
                 homeWalks += walk ? 1 : 0;
             }
-            batterDays.merge(p.getBatterId(), batterDayOf(p), InitialStateFactory::combine);
+            batterDays.merge(p.batterId(), batterDayOf(p), InitialStateFactory::combine);
         }
         linescore = linescore.add(startInning, myDefense, 0);   // 진행 중인 반이닝은 0 부터
 
-        TeamSide away = side(awayTeam, orders, t0, before, Half.TOP, first, awayHits, awayWalks);
-        TeamSide home = side(homeTeam, orders, t0, before, Half.BOT, first, homeHits, homeWalks);
+        TeamSide away = side(game, true, t0, before, Half.TOP, first, awayHits, awayWalks);
+        TeamSide home = side(game, false, t0, before, Half.BOT, first, homeHits, homeWalks);
 
-        return new SimState(first.getInning(), myDefense, first.getOutCount(), Bases.of(first.getBaseState()),
-                first.getScoreAway(), first.getScoreHome(), linescore, away, home,
-                pitcherDays(before), batterDays, t0, null, false);
+        return new SimState(first.inning(), myDefense, first.outs(), Bases.of(first.baseState()),
+                first.scoreAway(), first.scoreHome(), linescore, away, home,
+                pitcherDays(before), batterDays, t0, null, false, List.of());
     }
 
     /** 한 팀의 시점 t0 상태. battingHalf = 이 팀이 공격하는 반이닝 */
-    private static TeamSide side(String team, List<GameBattingOrder> orders, int t0, List<GamePa> before,
-                                 Half battingHalf, GamePa first, int hits, int walks) {
-        List<Integer> lineup = new ArrayList<>();
-        for (int slot = 1; slot <= 9; slot++) {
-            int s = slot;
-            lineup.add(orders.stream()
-                    .filter(o -> o.getTeamCode().equals(team) && o.getOrderNo() == s
-                            && (o.getSeq() == 0 || o.getFirstPaIndex() <= t0))   // 선발은 아직 타석 전이어도 라인업
-                    .max(Comparator.comparingInt(GameBattingOrder::getSeq))
-                    .orElseThrow(() -> new IllegalStateException(team + " " + s + "번 타자 기록이 없습니다"))
-                    .getBatterId());
-        }
+    private static TeamSide side(ActualGame game, boolean away, int t0, List<ActualPa> before,
+                                 Half battingHalf, ActualPa first, int hits, int walks) {
+        List<Integer> lineup = game.lineupAt(away, t0);
+        String team = away ? game.awayTeam() : game.homeTeam();
 
         int nextSlot;
-        if (Half.of(first.getHalf()) == battingHalf) {
-            nextSlot = first.getBattingOrder();
+        if (first.half() == battingHalf) {
+            nextSlot = first.battingOrder();
         } else {
-            nextSlot = last(before, p -> Half.of(p.getHalf()) == battingHalf)
-                    .map(p -> TeamSide.nextOf(p.getBattingOrder()))
+            // 마지막 타석이 끝나지 않았으면(주자 아웃으로 이닝 종료) 그 타자가 다음 이닝 첫 타자
+            nextSlot = last(before, p -> p.half() == battingHalf)
+                    .map(p -> p.partial() ? p.battingOrder() : TeamSide.nextOf(p.battingOrder()))
                     .orElse(1);
         }
 
         Half fieldingHalf = battingHalf == Half.TOP ? Half.BOT : Half.TOP;
-        int pitcherId = last(before, p -> Half.of(p.getHalf()) == fieldingHalf)
-                .map(GamePa::getPitcherId)
+        int pitcherId = last(before, p -> p.half() == fieldingHalf)
+                .map(ActualPa::pitcherId)
                 .orElseThrow(() -> new IllegalStateException(team + " 의 이전 수비 기록이 없습니다"));
         return new TeamSide(lineup, nextSlot, pitcherId, hits, walks);
     }
 
     /** 투수별 상대 타자 수(끝난 타석)와 투구 수(마지막 타석 기준 누적) */
-    private static Map<Integer, PitcherDay> pitcherDays(List<GamePa> before) {
+    private static Map<Integer, PitcherDay> pitcherDays(List<ActualPa> before) {
         Map<Integer, PitcherDay> days = new HashMap<>();
-        for (GamePa p : before) {
-            PitcherDay prev = days.getOrDefault(p.getPitcherId(), new PitcherDay(0, 0));
-            days.put(p.getPitcherId(), new PitcherDay(prev.paFaced() + (p.isPartialPa() ? 0 : 1),
-                    p.getPitchCountBefore() + p.getPitchesInPa()));
+        for (ActualPa p : before) {
+            PitcherDay prev = days.getOrDefault(p.pitcherId(), new PitcherDay(0, 0));
+            days.put(p.pitcherId(), new PitcherDay(prev.paFaced() + (p.partial() ? 0 : 1),
+                    p.pitchCountBefore() + p.pitchesInPa()));
         }
         return days;
     }
 
-    private static BatterDay batterDayOf(GamePa p) {
-        String r = p.getResult();
+    private static BatterDay batterDayOf(ActualPa p) {
+        String r = p.result();
         List<String> log = "UNK".equals(r) ? List.of() : List.of(r);
-        return new BatterDay(AT_BATS.contains(r) ? 1 : 0, HITS.contains(r) ? 1 : 0, p.getRunsScored(), log);
+        return new BatterDay(AT_BATS.contains(r) ? 1 : 0, HITS.contains(r) ? 1 : 0, p.runsScored(), log);
     }
 
     private static BatterDay combine(BatterDay a, BatterDay b) {
@@ -130,7 +121,7 @@ public final class InitialStateFactory {
         return new BatterDay(a.ab() + b.ab(), a.h() + b.h(), a.rbi() + b.rbi(), log);
     }
 
-    private static Optional<GamePa> last(List<GamePa> pas, Predicate<GamePa> filter) {
+    private static Optional<ActualPa> last(List<ActualPa> pas, Predicate<ActualPa> filter) {
         for (int i = pas.size() - 1; i >= 0; i--) {
             if (filter.test(pas.get(i))) {
                 return Optional.of(pas.get(i));

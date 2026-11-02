@@ -60,6 +60,9 @@ public class GamePa {
     @Column(name = "is_pitcher_change")
     private boolean pitcherChange;
 
+    @Column(name = "inning_ended")
+    private boolean inningEnded;
+
     protected GamePa() {
     }
 
@@ -129,5 +132,9 @@ public class GamePa {
 
     public boolean isPitcherChange() {
         return pitcherChange;
+    }
+
+    public boolean isInningEnded() {
+        return inningEnded;
     }
 }

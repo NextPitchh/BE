@@ -4,7 +4,7 @@ INSERT INTO teams (team_code, name) VALUES ('HH', '한화'), ('KT', 'KT');
 INSERT INTO players (player_id, name, throws, hit_type)
 SELECT id, '선수' || id, 'R', 'R' FROM generate_series(51001, 51009) AS id
 UNION ALL SELECT id, '선수' || id, 'R', 'L' FROM generate_series(52001, 52009) AS id
-UNION ALL SELECT id, '투수' || id, 'R', NULL FROM (VALUES (60001), (60002), (60003), (61001)) AS t(id);
+UNION ALL SELECT id, '투수' || id, 'R', NULL FROM (VALUES (60001), (60002), (60003), (60004), (61001)) AS t(id);
 INSERT INTO games (game_id, game_date, away_team, home_team, final_away, final_home, went_to_extras, is_cold_game,
                    is_excluded, available_innings_away, available_innings_home,
                    high_leverage_innings_away, high_leverage_innings_home, n_pa) VALUES
@@ -24,7 +24,8 @@ INSERT INTO game_pa (game_id, pa_index, inning, half, out_count, base_state, sco
     ('20250601HHKT02025', 5, 4, 'bot', 0, '0',  0, 4, -4, 52003, 61001, 3, 'BB', 'BB', NULL, 0, 0.1, 0.12, 1, 6, 5, false, false, true, 'actual', NULL),
     -- 시작 지점 t0 = 6: 실제 감독은 여기서 60003 으로 교체
     ('20250601HHKT02025', 6, 5, 'top', 0, '0',  0, 4, 4, 51004, 60003, 4, 'FO', 'OUT', NULL, 0, 0.94, 0.95, 0.2, 0, 4, false, true, false, 'actual', NULL),
-    ('20250601HHKT02025', 7, 5, 'top', 1, '0',  0, 4, 4, 51005, 60003, 5, 'GO', 'OUT', NULL, 0, 0.95, 0.96, 0.2, 4, 3, false, false, false, 'actual', NULL);
+    -- 5번 자리 대타 51009
+    ('20250601HHKT02025', 7, 5, 'top', 1, '0',  0, 4, 4, 51009, 60003, 5, 'GO', 'OUT', NULL, 0, 0.95, 0.96, 0.2, 4, 3, false, false, false, 'actual', NULL);
 
 -- 선발 9명씩. HH 5번 자리는 t0 뒤(타석 7)에 대타가 나왔지만 시작 시점 라인업은 선발이다
 INSERT INTO game_batting_order (game_id, team_code, order_no, seq, batter_id, is_starter, position, first_pa_index, last_pa_index)
@@ -33,3 +34,14 @@ FROM generate_series(1, 9) AS n
 UNION ALL
 SELECT '20250601HHKT02025', 'KT', n, 0, 52000 + n, true, NULL, n + 1, n + 1 FROM generate_series(1, 9) AS n;
 INSERT INTO game_batting_order VALUES ('20250601HHKT02025', 'HH', 5, 1, 51009, false, NULL, 7, 7);
+
+-- KT 불펜: 60001 선발(이미 등판), 60002 (현재), 60003 (실제 5회 교체), 60004 (안 나옴)
+INSERT INTO game_bullpen (game_id, team_code, pitcher_id, role, is_listed, first_pa_index, n_pa) VALUES
+    ('20250601HHKT02025', 'KT', 60001, 'starter', false, 0, 2),
+    ('20250601HHKT02025', 'KT', 60002, 'bullpen', true, 4, 1),
+    ('20250601HHKT02025', 'KT', 60003, 'bullpen', true, 6, 2),
+    ('20250601HHKT02025', 'KT', 60004, 'bullpen', true, NULL, 0),
+    ('20250601HHKT02025', 'HH', 61001, 'starter', false, 2, 3);
+
+-- log5 리그 기준 (outcome_counts 는 비워 두면 리그 비율 그대로)
+INSERT INTO league_outcome_rates VALUES ('2024', 56356, 0.183, 0.042, 0.004, 0.025, 0.104, 0.189, 0.237, 0.216, 0.338);

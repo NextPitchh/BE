@@ -2,6 +2,7 @@ package com.nemosdream.be.session.store;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.nemosdream.be.session.domain.ActualGame;
 import com.nemosdream.be.session.domain.GameSession;
 import com.nemosdream.be.session.domain.Half;
 import com.nemosdream.be.session.domain.Linescore;
@@ -15,7 +16,9 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import org.junit.jupiter.api.Test;
 
 class InMemorySessionStoreTest {
@@ -42,7 +45,7 @@ class InMemorySessionStoreTest {
         GameSession s = session("s_2");
         SimState first = s.current();
         SimState next = new SimState(5, Half.TOP, 1, Bases.EMPTY, 0, 0, Linescore.empty(), first.away(), first.home(),
-                Map.of(), Map.of(), 7, null, false);
+                Map.of(), Map.of(), 7, null, false, List.of());
 
         assertThat(s.canUndo()).isFalse();
         s.advance(next);
@@ -55,8 +58,9 @@ class InMemorySessionStoreTest {
     private static GameSession session(String id) {
         TeamSide side = new TeamSide(Collections.nCopies(9, 1), 1, 100, 0, 0);
         SimState state = new SimState(5, Half.TOP, 0, Bases.EMPTY, 0, 0, Linescore.empty(), side, side,
-                Map.of(), Map.of(), 6, null, false);
-        return new GameSession(id, "g", LocalDate.of(2025, 6, 1), "KT", "HH", false, "play", 1L, Map.of(), state, T0);
+                Map.of(), Map.of(), 6, null, false, List.of());
+        return new GameSession(id, "g", LocalDate.of(2025, 6, 1), "KT", "HH", false, "play", 1L, Map.of(),
+                new ActualGame("HH", "KT", List.of(), List.of()), Set.of(), state, T0);
     }
 
     static class MutableClock extends Clock {

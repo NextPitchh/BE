@@ -27,7 +27,7 @@ class CatBoostFeatureIntegrationTest {
         TeamSide away = new TeamSide(List.of(batter,2,3,4,5,6,7,8,9), 1, 44444, 0, 0);
         TeamSide home = new TeamSide(List.of(11,12,13,14,15,16,17,18,19), 1, pitcher, 0, 0);
         return new SimState(5, Half.TOP, 0, Bases.EMPTY, 1, 2, Linescore.empty(), away, home,
-                Map.of(), Map.of(), null, null, false);
+                Map.of(), Map.of(), null, null, false, List.of());
     }
 
     @Test
