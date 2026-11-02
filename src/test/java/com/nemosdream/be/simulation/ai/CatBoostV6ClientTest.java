@@ -43,9 +43,37 @@ class CatBoostV6ClientTest {
             assertEquals(9, probabilities.size());
             assertEquals(0.0, probabilities.get(PaOutcome.DOUBLE_PLAY));
             assertEquals(state.asRequest(), mapper.readValue(received.get(), Map.class));
+            assertThrows(IllegalStateException.class, () -> client.probabilities(state, new CatBoostHistory(293,57,0,0)));
             response.set(validResponse().replace(CatBoostV6Client.MODEL_VERSION, "wrong"));
             assertThrows(IllegalStateException.class, () -> client.probabilities(state));
             response.set(validResponse().replace("\"GO\":1.0", "\"GO\":0.5"));
+            assertThrows(IllegalStateException.class, () -> client.probabilities(state));
+        } finally {
+            server.stop(0);
+        }
+    }
+
+    @Test
+    void propagatesHttpFailuresAndTimeouts() throws Exception {
+        HttpServer server = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        AtomicReference<Integer> mode = new AtomicReference<>(503);
+        server.createContext("/v1/pa/predict-service", exchange -> {
+            try {
+                if (mode.get() == 200) Thread.sleep(1500);
+                exchange.sendResponseHeaders(mode.get(), -1);
+                exchange.close();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (java.io.IOException ignored) {
+                exchange.close();
+            }
+        });
+        server.start();
+        try {
+            String url = "http://127.0.0.1:" + server.getAddress().getPort();
+            CatBoostV6Client client = new CatBoostV6Client(mapper, url, 300);
+            assertThrows(IllegalStateException.class, () -> client.probabilities(state));
+            mode.set(200);
             assertThrows(IllegalStateException.class, () -> client.probabilities(state));
         } finally {
             server.stop(0);

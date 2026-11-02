@@ -40,6 +40,16 @@ public class CatBoostV6Client {
     }
 
     public Map<PaOutcome, Double> probabilities(CatBoostV6State state) {
+        return requestProbabilities(state, null);
+    }
+
+    /** Python은 이력을 요청에서 받지 않는다. 응답의 실제 모델 입력과 DB 값을 대조한다. */
+    public Map<PaOutcome, Double> probabilities(CatBoostV6State state, CatBoostHistory history) {
+        if (history == null) throw new IllegalArgumentException("Frozen history is required");
+        return requestProbabilities(state, history);
+    }
+
+    private Map<PaOutcome, Double> requestProbabilities(CatBoostV6State state, CatBoostHistory history) {
         HttpRequest request = HttpRequest.newBuilder(endpoint).timeout(timeout)
                 .header("Content-Type", "application/json")
                 .POST(HttpRequest.BodyPublishers.ofString(mapper.writeValueAsString(state.asRequest())))
@@ -53,6 +63,7 @@ public class CatBoostV6Client {
                     || !"direct-web9-spring-gdp-v1".equals(body.get("mapping_version"))) {
                 throw new IllegalStateException("Unexpected AI model or schema version");
             }
+            if (history != null) validateFeatures(body, state, history);
             if (!(body.get("web_probabilities") instanceof Map<?, ?> raw)
                     || !new HashSet<>(raw.keySet()).equals(CLASSES)) {
                 throw new IllegalStateException("Invalid AI outcome classes");
@@ -80,5 +91,31 @@ public class CatBoostV6Client {
             Thread.currentThread().interrupt();
             throw new IllegalStateException("AI request interrupted", e);
         }
+    }
+
+    private static void validateFeatures(Map<?, ?> body, CatBoostV6State state, CatBoostHistory history) {
+        if (!"2024-01-01".equals(body.get("history_cutoff"))
+                || !(body.get("features") instanceof Map<?, ?> f)) {
+            throw new IllegalStateException("Missing AI feature provenance");
+        }
+        int scoreDiff = state.half().equals("top") ? state.awayScore() - state.homeScore()
+                : state.homeScore() - state.awayScore();
+        if (!numberEquals(f.get("inning"), state.inning()) || !numberEquals(f.get("out_count"), state.outCount())
+                || !numberEquals(f.get("score_diff_attacker"), scoreDiff)
+                || !numberEquals(f.get("total_pitch_count_before"), state.totalPitchCountBefore())
+                || !numberEquals(f.get("inning_pitch_count_before"), state.inningPitchCountBefore())
+                || !numberEquals(f.get("batter_prior_ab"), history.batterPriorAb())
+                || !numberEquals(f.get("batter_prior_hits"), history.batterPriorHits())
+                || !numberEquals(f.get("matchup_ab"), history.matchupAb())
+                || !numberEquals(f.get("matchup_hits"), history.matchupHits())
+                || !state.half().equals(f.get("half")) || !state.baseState().equals(f.get("base_state"))
+                || !Integer.toString(state.pitcherId()).equals(f.get("pitcher_id"))
+                || !Integer.toString(state.batterId()).equals(f.get("batter_id"))) {
+            throw new IllegalStateException("AI features differ from request or frozen history");
+        }
+    }
+
+    private static boolean numberEquals(Object value, int expected) {
+        return value instanceof Number number && number.doubleValue() == expected;
     }
 }
