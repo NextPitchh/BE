@@ -7,6 +7,8 @@ import com.nemosdream.be.pitcher.service.PitcherStatsService;
 import com.nemosdream.be.session.domain.Decision;
 import com.nemosdream.be.session.domain.DivergedAt;
 import com.nemosdream.be.session.domain.GameSession;
+import com.nemosdream.be.session.domain.PaTrace;
+import com.nemosdream.be.session.domain.PaTraces;
 import com.nemosdream.be.session.domain.PlateAppearanceEngine;
 import com.nemosdream.be.session.domain.PlateAppearanceEngine.ActualUnit;
 import com.nemosdream.be.session.domain.PlateAppearanceEngine.Step;
@@ -18,6 +20,7 @@ import com.nemosdream.be.simulation.domain.PaContext;
 import com.nemosdream.be.simulation.domain.PaOutcome;
 import com.nemosdream.be.simulation.properties.SimulationProperties;
 import com.nemosdream.be.simulation.service.PaOutcomeModel;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -89,7 +92,10 @@ public class PlateAppearanceService {
             boolean attackerIsAway = s.half().awayBats();
             double weBefore = winExpectancy.we(s, attackerIsAway);
             double weAfter = winExpectancy.we(step.next(), attackerIsAway);
-            session.advance(step.next());
+            List<PaTrace> trace = new ArrayList<>(s.trace());
+            trace.add(new PaTrace(s.inning(), s.half(), PaTraces.paInHalf(s), pitcherId, step.outcome().code(),
+                    winExpectancy.leverageIndex(s), winExpectancy.awayWe(s), winExpectancy.awayWe(step.next())));
+            session.advance(step.next().withTrace(trace));
 
             double delta = round4(weAfter - weBefore);
             return new SimulatePaResponse(new PaResultResponse(

@@ -121,7 +121,7 @@ class PlateAppearanceEngineTest {
         List<ActualPa> pas = List.of(
                 new ActualPa(0, 5, Half.TOP, 2, "1", 0, 1, 51003, 60001, 3, "UNK", null, 0, 10, 2, true, true),
                 new ActualPa(1, 5, Half.BOT, 0, "0", 0, 1, 52001, 61001, 1, "1B", null, 0, 30, 4, false, false));
-        var game = new com.nemosdream.be.session.domain.ActualGame("HH", "KT", pas, lineups());
+        var game = new com.nemosdream.be.session.domain.ActualGame("HH", "KT", pas, lineups(), 1, 0);
         SimState s = new SimState(5, Half.TOP, 2, Bases.of("1"), 1, 0, Linescore.empty().add(5, Half.TOP, 0),
                 new TeamSide(AWAY_LINEUP, 3, AWAY_PITCHER, 0, 0), new TeamSide(HOME_LINEUP, 4, 60001, 0, 0),
                 Map.of(), Map.of(), 0, null, false, List.of());

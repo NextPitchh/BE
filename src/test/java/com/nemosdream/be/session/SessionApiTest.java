@@ -224,6 +224,124 @@ class SessionApiTest extends PostgresTestSupport {
                 .andExpect(jsonPath("$.state.is_diverged").value(true));
     }
 
+    @Test
+    void 되돌리기는_직전_상태로_돌아가고_분기도_되돌린다() throws Exception {
+        String sid = sessionId();
+        undo(sid)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("CANNOT_UNDO"));
+
+        simulate(sid, 60002).andExpect(jsonPath("$.result.next_state.is_diverged").value(true));
+        undo(sid)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.state.is_diverged").value(false))
+                .andExpect(jsonPath("$.state.diverged_at").value(nullValue()))
+                .andExpect(jsonPath("$.state.out_count").value(0))
+                .andExpect(jsonPath("$.state.current_pitcher.pitcher_id").value(60002))
+                .andExpect(jsonPath("$.state.current_pitcher.workload.pa_faced_today").value(1))
+                .andExpect(jsonPath("$.state.can_undo").value(false));
+    }
+
+    @Test
+    void 되돌린_뒤_같은_선택이면_같은_결과() throws Exception {
+        String sid = sessionId();
+        String first = outcome(simulate(sid, 60004));
+        undo(sid);
+        org.assertj.core.api.Assertions.assertThat(outcome(simulate(sid, 60004))).isEqualTo(first);
+    }
+
+    @Test
+    void 승률_추이는_반이닝_단위로_실제와_시뮬레이션을_나눈다() throws Exception {
+        String sid = sessionId();
+        weTrace(sid)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.perspective").value("KT"))
+                // 실제 기록이 있는 반이닝: 1초, 1말, 4초, 4말, 5초, 5말, 6초
+                .andExpect(jsonPath("$.actual.length()").value(7))
+                .andExpect(jsonPath("$.actual[4].inning").value(5))
+                .andExpect(jsonPath("$.actual[4].half").value("top"))
+                .andExpect(jsonPath("$.actual[6].we").value(0.0))          // 실제 경기는 KT 패배로 끝
+                .andExpect(jsonPath("$.simulated").isEmpty())
+                .andExpect(jsonPath("$.diverge_at").value(nullValue()))
+                .andExpect(jsonPath("$.current").value(closeTo(0.0613, 1e-4)));
+
+        simulate(sid, 60002);
+        weTrace(sid)
+                .andExpect(jsonPath("$.diverge_at.inning").value(5))
+                .andExpect(jsonPath("$.diverge_at.half").value("top"))
+                .andExpect(jsonPath("$.simulated[0].inning").value(5))
+                .andExpect(jsonPath("$.simulated[0].half").value("top"))
+                .andExpect(jsonPath("$.simulated[0].leverage_index").value(closeTo(0.159, 1e-3)));
+    }
+
+    @Test
+    void 결과_화면은_실제와_같은_선택이면_실제_경기와_같다() throws Exception {
+        String sid = sessionId();
+        simulate(sid, 60003);                      // 실제 감독 교체와 같은 선택
+        simulate(sid, 60003);
+        simulate(sid, 60003);                      // 5회초 종료
+        advance(sid);                              // 5회말 2점
+
+        result(sid)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.simulated.score.my").value(2))
+                .andExpect(jsonPath("$.simulated.score.opp").value(4))
+                .andExpect(jsonPath("$.simulated.runs_allowed_in_range").value(0))
+                .andExpect(jsonPath("$.simulated.result").value("in_progress"))
+                .andExpect(jsonPath("$.actual.score.my").value(2))       // games.final_home
+                .andExpect(jsonPath("$.actual.score.opp").value(5))
+                .andExpect(jsonPath("$.actual.result").value("loss"))
+                .andExpect(jsonPath("$.actual.final_we").value(0.0))
+                .andExpect(jsonPath("$.pitcher_usage.length()").value(1))
+                .andExpect(jsonPath("$.pitcher_usage[0].pitcher_id").value(60003))
+                .andExpect(jsonPath("$.pitcher_usage[0].from.pa").value(0))
+                .andExpect(jsonPath("$.pitcher_usage[0].to.pa").value(2))
+                .andExpect(jsonPath("$.pitcher_usage[0].pitches_est").value(11))
+                .andExpect(jsonPath("$.actual_pitcher_usage[0].pitcher_id").value(60003))
+                .andExpect(jsonPath("$.decisions.length()").value(3))
+                .andExpect(jsonPath("$.decisions[0].user_choice.pitcher_id").value(60003))
+                .andExpect(jsonPath("$.decisions[0].actual_choice.pitcher_id").value(60003))
+                .andExpect(jsonPath("$.decisions[0].is_change").value(true))
+                .andExpect(jsonPath("$.decisions[1].is_change").value(false))
+                .andExpect(jsonPath("$.decisions[0].outcome").value("FO"))
+                .andExpect(jsonPath("$.decisions[0].model_top").value(nullValue()))
+                .andExpect(jsonPath("$.agreement.total_decisions").value(3))
+                .andExpect(jsonPath("$.agreement.same_as_actual").value(3))
+                .andExpect(jsonPath("$.agreement.mine_in_top3").value(nullValue()))
+                .andExpect(jsonPath("$.bullpen_used.mine").value(3))      // 60001, 60002, 60003
+                .andExpect(jsonPath("$.bullpen_used.total").value(4));
+    }
+
+    @Test
+    void 분기_후_결정은_실제_선택이_없다() throws Exception {
+        String sid = sessionId();
+        simulate(sid, 60004);
+        simulate(sid, 60004);
+        result(sid)
+                .andExpect(jsonPath("$.decisions[0].actual_choice.pitcher_id").value(60003))
+                .andExpect(jsonPath("$.decisions[1].actual_choice").value(nullValue()))
+                .andExpect(jsonPath("$.agreement.same_as_actual").value(0))
+                .andExpect(jsonPath("$.pitcher_usage[0].pitcher_id").value(60004));
+    }
+
+    private ResultActions result(String sessionId) throws Exception {
+        return mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                .get("/api/v1/sessions/" + sessionId + "/result"));
+    }
+
+    private String outcome(ResultActions result) throws Exception {
+        return com.jayway.jsonpath.JsonPath.read(result.andReturn().getResponse().getContentAsString(), "$.result.outcome");
+    }
+
+    private ResultActions undo(String sessionId) throws Exception {
+        return mockMvc.perform(post("/api/v1/sessions/" + sessionId + "/undo"));
+    }
+
+    private ResultActions weTrace(String sessionId) throws Exception {
+        return mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
+                .get("/api/v1/sessions/" + sessionId + "/we-trace"));
+    }
+
     private ResultActions advance(String sessionId) throws Exception {
         return mockMvc.perform(post("/api/v1/sessions/" + sessionId + "/advance-half"));
     }

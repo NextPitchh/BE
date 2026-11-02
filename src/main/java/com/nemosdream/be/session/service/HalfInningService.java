@@ -9,6 +9,8 @@ import com.nemosdream.be.player.repository.PlayerRepository;
 import com.nemosdream.be.session.domain.ActualGame;
 import com.nemosdream.be.session.domain.ActualPa;
 import com.nemosdream.be.session.domain.GameSession;
+import com.nemosdream.be.session.domain.PaTrace;
+import com.nemosdream.be.session.domain.PaTraces;
 import com.nemosdream.be.session.domain.PlateAppearanceEngine;
 import com.nemosdream.be.session.domain.PlateAppearanceEngine.ActualUnit;
 import com.nemosdream.be.session.domain.PlateAppearanceEngine.Step;
@@ -87,6 +89,7 @@ public class HalfInningService {
             List<String> descriptions = new ArrayList<>();
             List<Double> weTrace = new ArrayList<>(List.of(round4(winExpectancy.myTeamWe(session, start))));
             int hits = 0;
+            List<PaTrace> trace = new ArrayList<>(start.trace());
 
             SimState s = start;
             for (int pa = 0; sameHalf(s, start) && !s.gameOver(); pa++) {
@@ -109,6 +112,10 @@ public class HalfInningService {
                     }
                     step = PlateAppearanceEngine.replay(s, actual, unit.get(), null);
                 }
+                SimState before = s.withTrace(trace);
+                trace.add(new PaTrace(s.inning(), s.half(), PaTraces.paInHalf(before), pitcherOf(step, s),
+                        step.outcome().code(), winExpectancy.leverageIndex(s), winExpectancy.awayWe(s),
+                        winExpectancy.awayWe(step.next())));
                 batterIds.add(s.currentBatterId());
                 outcomes.add(step.outcome());
                 descriptions.add(step.description());
@@ -118,7 +125,7 @@ public class HalfInningService {
             }
 
             int myRuns = session.myTeamIsAway() ? s.scoreAway() - start.scoreAway() : s.scoreHome() - start.scoreHome();
-            session.advance(s);
+            session.advance(s.withTrace(trace));
 
             Map<Integer, Player> names = players.findAllById(batterIds).stream()
                     .collect(Collectors.toMap(Player::getId, Function.identity()));
@@ -132,6 +139,14 @@ public class HalfInningService {
                     new AdvanceHalfResponse.Summary(myRuns, hits, log, weTrace, simulated ? "simulated" : "actual"),
                     assembler.toResponse(session));
         }
+    }
+
+    /** 타석을 마친 수비 투수 (재생이면 실제, 도중 교체면 마무리 투수) */
+    private static int pitcherOf(Step step, SimState before) {
+        SimState n = step.next();
+        boolean sameHalf = n.inning() == before.inning() && n.half() == before.half();
+        return sameHalf || n.gameOver() ? n.fielding().pitcherId()
+                : (before.half().awayBats() ? n.home() : n.away()).pitcherId();
     }
 
     /** 분기 후 상대 투수: 실제 같은 반이닝의 k 번째 타석 투수. 실제 반이닝이 없으면 지금 투수 */

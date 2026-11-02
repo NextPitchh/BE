@@ -57,6 +57,13 @@ public class GameSession {
         current = next;
     }
 
+    /** 처음 상태부터 지금까지의 상태 (시간 순). 되돌린 단계는 들어 있지 않다 */
+    public synchronized List<SimState> timeline() {
+        List<SimState> all = new java.util.ArrayList<>(history.reversed());
+        all.add(current);
+        return all;
+    }
+
     /** 지금까지 진행한 단계 수 (되돌리면 줄어든다). 주사위 seed 를 단계마다 다르게 할 때 쓴다 */
     public synchronized int stepCount() {
         return history.size();
