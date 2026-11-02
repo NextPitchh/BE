@@ -25,7 +25,15 @@ INSERT INTO game_pa (game_id, pa_index, inning, half, out_count, base_state, sco
     -- 시작 지점 t0 = 6: 실제 감독은 여기서 60003 으로 교체
     ('20250601HHKT02025', 6, 5, 'top', 0, '0',  0, 4, 4, 51004, 60003, 4, 'FO', 'OUT', NULL, 0, 0.94, 0.95, 0.2, 0, 4, false, true, false, 'actual', NULL),
     -- 5번 자리 대타 51009
-    ('20250601HHKT02025', 7, 5, 'top', 1, '0',  0, 4, 4, 51009, 60003, 5, 'GO', 'OUT', NULL, 0, 0.95, 0.96, 0.2, 4, 3, false, false, false, 'actual', NULL);
+    ('20250601HHKT02025', 7, 5, 'top', 1, '0',  0, 4, 4, 51009, 60003, 5, 'GO', 'OUT', NULL, 0, 0.95, 0.96, 0.2, 4, 3, false, false, false, 'actual', NULL),
+    ('20250601HHKT02025', 8, 5, 'top', 2, '0',  0, 4, 4, 51006, 60003, 6, 'SO', 'SO', NULL, 0, 0.96, 0.97, 0.2, 7, 4, false, false, true, 'actual', NULL),
+    -- 5회말 KT(내 팀) 공격: 안타, 2점 홈런, 삼진, 땅볼, 플라이
+    ('20250601HHKT02025', 9, 5, 'bot', 0, '0',  0, 4, -4, 52004, 61001, 4, '1B', '1B', '김 : 좌전 안타', 0, 0.03, 0.05, 0.5, 11, 3, false, false, false, 'actual', NULL),
+    ('20250601HHKT02025', 10, 5, 'bot', 0, '1', 0, 4, -4, 52005, 61001, 5, 'HR', 'HR', '이 : 좌월 2점 홈런', 2, 0.05, 0.15, 0.6, 14, 2, false, false, false, 'actual', NULL),
+    ('20250601HHKT02025', 11, 5, 'bot', 0, '0', 2, 4, -2, 52006, 61001, 6, 'SO', 'SO', NULL, 0, 0.15, 0.13, 0.8, 16, 5, false, false, false, 'actual', NULL),
+    ('20250601HHKT02025', 12, 5, 'bot', 1, '0', 2, 4, -2, 52007, 61001, 7, 'GO', 'OUT', NULL, 0, 0.13, 0.12, 0.7, 21, 3, false, false, false, 'actual', NULL),
+    ('20250601HHKT02025', 13, 5, 'bot', 2, '0', 2, 4, -2, 52008, 61001, 8, 'FO', 'OUT', NULL, 0, 0.12, 0.11, 0.6, 24, 4, false, false, true, 'actual', NULL),
+    ('20250601HHKT02025', 14, 6, 'top', 0, '0', 2, 4, 2, 51007, 60003, 7, 'SO', 'SO', NULL, 0, 0.89, 0.9, 0.9, 11, 4, false, false, false, 'actual', NULL);
 
 -- 선발 9명씩. HH 5번 자리는 t0 뒤(타석 7)에 대타가 나왔지만 시작 시점 라인업은 선발이다
 INSERT INTO game_batting_order (game_id, team_code, order_no, seq, batter_id, is_starter, position, first_pa_index, last_pa_index)

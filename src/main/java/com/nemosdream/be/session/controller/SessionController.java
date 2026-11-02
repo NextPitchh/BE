@@ -2,10 +2,12 @@ package com.nemosdream.be.session.controller;
 
 import com.nemosdream.be.global.error.ApiErrorCodes;
 import com.nemosdream.be.global.error.ErrorCode;
+import com.nemosdream.be.session.dto.AdvanceHalfResponse;
 import com.nemosdream.be.session.dto.CreateSessionRequest;
 import com.nemosdream.be.session.dto.SessionStateResponse;
 import com.nemosdream.be.session.dto.SimulatePaRequest;
 import com.nemosdream.be.session.dto.SimulatePaResponse;
+import com.nemosdream.be.session.service.HalfInningService;
 import com.nemosdream.be.session.service.PlateAppearanceService;
 import com.nemosdream.be.session.service.SessionService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -24,10 +26,13 @@ public class SessionController {
 
     private final SessionService sessionService;
     private final PlateAppearanceService plateAppearanceService;
+    private final HalfInningService halfInningService;
 
-    public SessionController(SessionService sessionService, PlateAppearanceService plateAppearanceService) {
+    public SessionController(SessionService sessionService, PlateAppearanceService plateAppearanceService,
+                             HalfInningService halfInningService) {
         this.sessionService = sessionService;
         this.plateAppearanceService = plateAppearanceService;
+        this.halfInningService = halfInningService;
     }
 
     @Operation(summary = "세션 시작",
@@ -50,5 +55,15 @@ public class SessionController {
     public SimulatePaResponse simulatePa(@PathVariable String sessionId,
                                          @Valid @RequestBody SimulatePaRequest request) {
         return plateAppearanceService.simulate(sessionId, request.pitcherId());
+    }
+
+    @Operation(summary = "공격 반이닝 자동 진행",
+            description = "내 팀 공격 반이닝을 서버가 3아웃(또는 경기 종료)까지 진행한다. "
+                    + "분기 전이면 실제 기록을 재생하고(summary.source: actual), 분기 후면 주사위로 진행한다(simulated). "
+                    + "분기 후 상대 투수는 실제 경기 같은 반이닝의 투수 순서를 따른다. 반이닝 전체가 되돌리기 한 단계다.")
+    @ApiErrorCodes({ErrorCode.SESSION_EXPIRED, ErrorCode.INVALID_ROLE})
+    @PostMapping("/sessions/{sessionId}/advance-half")
+    public AdvanceHalfResponse advanceHalf(@PathVariable String sessionId) {
+        return halfInningService.advance(sessionId);
     }
 }

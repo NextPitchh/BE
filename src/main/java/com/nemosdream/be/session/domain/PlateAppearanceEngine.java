@@ -82,7 +82,11 @@ public final class PlateAppearanceEngine {
         };
     }
 
-    /** 실제 기록 재생. 다음 상태는 다음 실제 타석의 시작 상황이고, 라인업도 그 시점 실제 라인업(대타 포함)이다 */
+    /**
+     * 실제 기록 재생. 다음 상태는 다음 실제 타석의 시작 상황이고, 라인업도 그 시점 실제 라인업(대타 포함)이다.
+     *
+     * @param decision 사용자 투수 선택. 공격 자동 진행이면 null
+     */
     public static Step replay(SimState s, ActualGame game, ActualUnit unit, Decision decision) {
         List<ActualPa> pas = game.pas();
         ActualPa r = unit.resultRow();
@@ -143,6 +147,7 @@ public final class PlateAppearanceEngine {
     /**
      * 주사위 결과로 진행. 진루는 RunnerAdvancement, 투구 수는 타석당 평균만큼 늘린다.
      *
+     * @param decision   사용자 투수 선택. 공격 자동 진행이면 null
      * @param divergedAt 이 타석부터 (또는 이미) 분기한 지점
      */
     public static Step simulate(SimState s, int pitcherId, PaOutcome rolled, double pitchesPerPa,
@@ -198,6 +203,50 @@ public final class PlateAppearanceEngine {
         return new Step(next, outcome, runs, description, false);
     }
 
+    /**
+     * 결과가 없는 실제 행(주자 아웃으로 이닝이 끝난 타석, 타석 도중 대타 등)을 타석 없이 지나간다.
+     * 다음 상황은 다음 실제 행에서 가져오고, 이닝이 그 행에서 끝났으면 그 타자가 다음 이닝 첫 타자다. 분기 전 공격 재생에만 쓴다.
+     */
+    public static SimState skipActualRow(SimState s, ActualGame game, int t) {
+        List<ActualPa> pas = game.pas();
+        ActualPa row = pas.get(t);
+        int nextIndex = t + 1;
+        ActualPa nextRow = nextIndex < pas.size() ? pas.get(nextIndex) : null;
+        boolean sameHalf = nextRow != null && nextRow.sameHalfAs(row);
+
+        Map<Integer, PitcherDay> pitcherDays = new HashMap<>(s.pitcherDays());
+        PitcherDay prev = s.pitcherDay(row.pitcherId());
+        pitcherDays.put(row.pitcherId(), new PitcherDay(prev.paFaced(), row.pitchCountBefore() + row.pitchesInPa()));
+
+        int awayAfter = nextRow != null ? nextRow.scoreAway() : s.scoreAway() + (row.half().awayBats() ? row.runsScored() : 0);
+        int homeAfter = nextRow != null ? nextRow.scoreHome() : s.scoreHome() + (row.half().awayBats() ? 0 : row.runsScored());
+        int runs = s.half().awayBats() ? awayAfter - s.scoreAway() : homeAfter - s.scoreHome();
+
+        boolean awayBats = s.half().awayBats();
+        int lineupAt = nextRow != null ? nextIndex : t;
+        TeamSide batting = s.batting();
+        TeamSide fielding = s.fielding();
+        TeamSide newBatting = new TeamSide(game.lineupAt(awayBats, lineupAt),
+                sameHalf ? nextRow.battingOrder() : row.battingOrder(), batting.pitcherId(), batting.hits(), batting.walks());
+        TeamSide newFielding = new TeamSide(game.lineupAt(!awayBats, lineupAt),
+                !sameHalf && nextRow != null ? nextRow.battingOrder() : fielding.nextSlot(), row.pitcherId(),
+                fielding.hits(), fielding.walks());
+        TeamSide away = awayBats ? newBatting : newFielding;
+        TeamSide home = awayBats ? newFielding : newBatting;
+        Linescore linescore = s.linescore().add(s.inning(), s.half(), runs);
+
+        if (nextRow == null) {
+            return new SimState(s.inning(), s.half(), 3, Bases.EMPTY, awayAfter, homeAfter, linescore, away, home,
+                    pitcherDays, s.batterDays(), null, null, true, s.decisions());
+        }
+        if (!sameHalf) {
+            linescore = linescore.add(nextRow.inning(), nextRow.half(), 0);
+        }
+        return new SimState(nextRow.inning(), nextRow.half(), nextRow.outs(), Bases.of(nextRow.baseState()),
+                awayAfter, homeAfter, linescore, away, home, pitcherDays, s.batterDays(),
+                nextIndex, null, false, s.decisions());
+    }
+
     private static Map<Integer, BatterDay> withBatterDay(SimState s, int batterId, PaOutcome outcome, int runs) {
         BatterDay prev = s.batterDay(batterId);
         List<String> log = new ArrayList<>(prev.log());
@@ -217,7 +266,11 @@ public final class PlateAppearanceEngine {
         return colon >= 0 ? relayText.substring(colon + 3).trim() : relayText.trim();
     }
 
+    /** decision 이 null 이면 (상대 팀 타석, 공격 자동 진행) 기록하지 않는다 */
     private static List<Decision> append(List<Decision> decisions, Decision decision) {
+        if (decision == null) {
+            return decisions;
+        }
         List<Decision> all = new ArrayList<>(decisions);
         all.add(decision);
         return all;

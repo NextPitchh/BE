@@ -18,7 +18,6 @@ import com.nemosdream.be.simulation.domain.PaContext;
 import com.nemosdream.be.simulation.domain.PaOutcome;
 import com.nemosdream.be.simulation.properties.SimulationProperties;
 import com.nemosdream.be.simulation.service.PaOutcomeModel;
-import com.nemosdream.be.weli.service.WeLiLookupService;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -44,17 +43,17 @@ public class PlateAppearanceService {
     private final SessionService sessions;
     private final PaOutcomeModel model;
     private final PitcherStatsService pitcherStats;
-    private final WeLiLookupService weLi;
+    private final WinExpectancyCalculator winExpectancy;
     private final GameStateAssembler assembler;
     private final SimulationProperties properties;
 
     public PlateAppearanceService(SessionService sessions, PaOutcomeModel model, PitcherStatsService pitcherStats,
-                                  WeLiLookupService weLi, GameStateAssembler assembler,
+                                  WinExpectancyCalculator winExpectancy, GameStateAssembler assembler,
                                   SimulationProperties properties) {
         this.sessions = sessions;
         this.model = model;
         this.pitcherStats = pitcherStats;
-        this.weLi = weLi;
+        this.winExpectancy = winExpectancy;
         this.assembler = assembler;
         this.properties = properties;
     }
@@ -87,8 +86,9 @@ public class PlateAppearanceService {
                         decision, at);
             }
 
-            double weBefore = attackerWe(s);
-            double weAfter = attackerWeAfter(s, step.next());
+            boolean attackerIsAway = s.half().awayBats();
+            double weBefore = winExpectancy.we(s, attackerIsAway);
+            double weAfter = winExpectancy.we(step.next(), attackerIsAway);
             session.advance(step.next());
 
             double delta = round4(weAfter - weBefore);
@@ -123,23 +123,6 @@ public class PlateAppearanceService {
         PitcherCardStats card = pitcherStats.getCardStats(gameId, List.of(pitcherId)).get(pitcherId);
         Double avg = card == null ? null : card.fatigue().avgPitchesPerPa();
         return avg == null ? properties.defaultPitchesPerPa() : avg;
-    }
-
-    /** 타석 전 공격팀 관점 승률 */
-    private double attackerWe(SimState s) {
-        return weLi.lookup(s.inning(), s.half().code(), s.outs(), s.bases().baseState(), s.scoreDiffAttacker()).we();
-    }
-
-    /** 타석 후, 타석 전 공격팀 관점 승률. 반이닝이 바뀌었으면 새 공격팀 승률을 뒤집는다 */
-    private double attackerWeAfter(SimState before, SimState after) {
-        boolean attackerIsAway = before.half().awayBats();
-        if (after.gameOver()) {
-            int mine = attackerIsAway ? after.scoreAway() : after.scoreHome();
-            int theirs = attackerIsAway ? after.scoreHome() : after.scoreAway();
-            return mine > theirs ? 1.0 : mine < theirs ? 0.0 : 0.5;
-        }
-        double we = attackerWe(after);
-        return after.half() == before.half() && after.inning() == before.inning() ? we : 1.0 - we;
     }
 
     /** 명세 예시처럼 결과 코드를 키로, 9종 순서대로 */

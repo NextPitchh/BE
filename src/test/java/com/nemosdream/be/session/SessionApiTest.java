@@ -178,6 +178,56 @@ class SessionApiTest extends PostgresTestSupport {
                 .andExpect(jsonPath("$.error.code").value("SESSION_EXPIRED"));
     }
 
+    @Test
+    void 분기_전_공격_반이닝은_실제_기록을_재생한다() throws Exception {
+        String sid = sessionId();
+        simulate(sid, 60003);
+        simulate(sid, 60003);
+        simulate(sid, 60003)                       // 3아웃 → 내 팀 공격
+                .andExpect(jsonPath("$.result.next_state.half").value("bot"))
+                .andExpect(jsonPath("$.result.next_state.my_role").value("offense"));
+        // 공격 중에는 투수를 고를 수 없다
+        simulate(sid, 60003).andExpect(jsonPath("$.error.code").value("INVALID_ROLE"));
+
+        advance(sid)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.source").value("actual"))
+                .andExpect(jsonPath("$.summary.runs").value(2))
+                .andExpect(jsonPath("$.summary.hits").value(2))
+                .andExpect(jsonPath("$.summary.pa_log[*].batter_id").value(contains(52004, 52005, 52006, 52007, 52008)))
+                .andExpect(jsonPath("$.summary.pa_log[*].outcome").value(contains("1B", "HR", "SO", "GO", "FO")))
+                .andExpect(jsonPath("$.summary.pa_log[1].description").value("좌월 2점 홈런"))
+                .andExpect(jsonPath("$.summary.we_trace.length()").value(6))
+                .andExpect(jsonPath("$.state.inning").value(6))
+                .andExpect(jsonPath("$.state.half").value("top"))
+                .andExpect(jsonPath("$.state.my_role").value("defense"))
+                .andExpect(jsonPath("$.state.score.home").value(2))
+                .andExpect(jsonPath("$.state.linescore.home[4]").value(2))
+                .andExpect(jsonPath("$.state.linescore.away[5]").value(0))
+                .andExpect(jsonPath("$.state.current_batter.batter_id").value(51007))
+                .andExpect(jsonPath("$.state.is_diverged").value(false));
+        // 수비 중에는 자동 진행할 수 없다
+        advance(sid).andExpect(jsonPath("$.error.code").value("INVALID_ROLE"));
+    }
+
+    @Test
+    void 분기_후_공격_반이닝은_주사위로_진행한다() throws Exception {
+        String sid = sessionId();
+        String role = "defense";
+        for (int i = 0; i < 40 && role.equals("defense"); i++) {
+            String body = simulate(sid, 60002).andReturn().getResponse().getContentAsString();
+            role = com.jayway.jsonpath.JsonPath.read(body, "$.result.next_state.my_role");
+        }
+        advance(sid)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.summary.source").value("simulated"))
+                .andExpect(jsonPath("$.state.is_diverged").value(true));
+    }
+
+    private ResultActions advance(String sessionId) throws Exception {
+        return mockMvc.perform(post("/api/v1/sessions/" + sessionId + "/advance-half"));
+    }
+
     private String sessionId() throws Exception {
         String body = create("""
                 {"game_id": "20250601HHKT02025", "my_team": "KT", "start_inning": 5}""")
