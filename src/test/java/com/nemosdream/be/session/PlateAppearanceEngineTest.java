@@ -115,6 +115,37 @@ class PlateAppearanceEngineTest {
         assertThat(PlateAppearanceEngine.actualUnit(pas, 5)).isEmpty();
     }
 
+    @Test
+    void 주자_아웃으로_끝난_타석은_건너뛰고_그_타자가_다음_이닝_첫_타자() {
+        // 행 0: 5회초 2사, 3번 타자 타석 도중 주자 아웃으로 이닝 종료 (결과 없음), 행 1: 5회말 1번 타자
+        List<ActualPa> pas = List.of(
+                new ActualPa(0, 5, Half.TOP, 2, "1", 0, 1, 51003, 60001, 3, "UNK", null, 0, 10, 2, true, true),
+                new ActualPa(1, 5, Half.BOT, 0, "0", 0, 1, 52001, 61001, 1, "1B", null, 0, 30, 4, false, false));
+        var game = new com.nemosdream.be.session.domain.ActualGame("HH", "KT", pas, lineups(), 1, 0);
+        SimState s = new SimState(5, Half.TOP, 2, Bases.of("1"), 1, 0, Linescore.empty().add(5, Half.TOP, 0),
+                new TeamSide(AWAY_LINEUP, 3, AWAY_PITCHER, 0, 0), new TeamSide(HOME_LINEUP, 4, 60001, 0, 0),
+                Map.of(), Map.of(), 0, null, false, List.of());
+
+        assertThat(PlateAppearanceEngine.actualUnit(pas, 0)).isEmpty();
+        SimState n = PlateAppearanceEngine.skipActualRow(s, game, 0);
+
+        assertThat(n.half()).isEqualTo(Half.BOT);
+        assertThat(n.nextActualPaIndex()).isEqualTo(1);
+        assertThat(n.away().nextSlot()).isEqualTo(3);           // 같은 타자가 6회초 첫 타자
+        assertThat(n.home().nextSlot()).isEqualTo(1);
+        assertThat(n.pitcherDay(60001).pitches()).isEqualTo(12);
+        assertThat(n.linescore().home().get(4)).isZero();
+    }
+
+    private static List<com.nemosdream.be.session.domain.LineupEntry> lineups() {
+        List<com.nemosdream.be.session.domain.LineupEntry> e = new java.util.ArrayList<>();
+        for (int i = 1; i <= 9; i++) {
+            e.add(new com.nemosdream.be.session.domain.LineupEntry("HH", i, 0, 51000 + i, i - 1));
+            e.add(new com.nemosdream.be.session.domain.LineupEntry("KT", i, 0, 52000 + i, i - 1));
+        }
+        return e;
+    }
+
     private static Step simulate(SimState s, PaOutcome outcome) {
         int pitcher = s.currentPitcherId();
         return PlateAppearanceEngine.simulate(s, pitcher, outcome, 4.0,

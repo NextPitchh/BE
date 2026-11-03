@@ -2,16 +2,23 @@ package com.nemosdream.be.session.controller;
 
 import com.nemosdream.be.global.error.ApiErrorCodes;
 import com.nemosdream.be.global.error.ErrorCode;
+import com.nemosdream.be.session.dto.AdvanceHalfResponse;
 import com.nemosdream.be.session.dto.CreateSessionRequest;
+import com.nemosdream.be.session.dto.ResultResponse;
 import com.nemosdream.be.session.dto.SessionStateResponse;
 import com.nemosdream.be.session.dto.SimulatePaRequest;
 import com.nemosdream.be.session.dto.SimulatePaResponse;
+import com.nemosdream.be.session.dto.WeTraceResponse;
+import com.nemosdream.be.session.service.HalfInningService;
 import com.nemosdream.be.session.service.PlateAppearanceService;
+import com.nemosdream.be.session.service.ResultService;
 import com.nemosdream.be.session.service.SessionService;
+import com.nemosdream.be.session.service.WeTraceService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -24,10 +31,18 @@ public class SessionController {
 
     private final SessionService sessionService;
     private final PlateAppearanceService plateAppearanceService;
+    private final HalfInningService halfInningService;
+    private final WeTraceService weTraceService;
+    private final ResultService resultService;
 
-    public SessionController(SessionService sessionService, PlateAppearanceService plateAppearanceService) {
+    public SessionController(SessionService sessionService, PlateAppearanceService plateAppearanceService,
+                             HalfInningService halfInningService, WeTraceService weTraceService,
+                             ResultService resultService) {
         this.sessionService = sessionService;
         this.plateAppearanceService = plateAppearanceService;
+        this.halfInningService = halfInningService;
+        this.weTraceService = weTraceService;
+        this.resultService = resultService;
     }
 
     @Operation(summary = "세션 시작",
@@ -50,5 +65,44 @@ public class SessionController {
     public SimulatePaResponse simulatePa(@PathVariable String sessionId,
                                          @Valid @RequestBody SimulatePaRequest request) {
         return plateAppearanceService.simulate(sessionId, request.pitcherId());
+    }
+
+    @Operation(summary = "공격 반이닝 자동 진행",
+            description = "내 팀 공격 반이닝을 서버가 3아웃(또는 경기 종료)까지 진행한다. "
+                    + "분기 전이면 실제 기록을 재생하고(summary.source: actual), 분기 후면 주사위로 진행한다(simulated). "
+                    + "분기 후 상대 투수는 실제 경기 같은 반이닝의 투수 순서를 따른다. 반이닝 전체가 되돌리기 한 단계다.")
+    @ApiErrorCodes({ErrorCode.SESSION_EXPIRED, ErrorCode.INVALID_ROLE})
+    @PostMapping("/sessions/{sessionId}/advance-half")
+    public AdvanceHalfResponse advanceHalf(@PathVariable String sessionId) {
+        return halfInningService.advance(sessionId);
+    }
+
+    @Operation(summary = "되돌리기",
+            description = "직전 상태로 돌아간다. 단위는 타석 1회이고, 자동 진행한 공격 반이닝은 통째로 되돌린다. "
+                    + "분기 전으로 돌아가면 is_diverged 도 false 가 된다. 되돌린 뒤 같은 선택을 하면 같은 결과가 나온다.")
+    @ApiErrorCodes({ErrorCode.SESSION_EXPIRED, ErrorCode.CANNOT_UNDO})
+    @PostMapping("/sessions/{sessionId}/undo")
+    public SessionStateResponse undo(@PathVariable String sessionId) {
+        return sessionService.undo(sessionId);
+    }
+
+    @Operation(summary = "승률·레버리지 추이",
+            description = "반이닝 단위 승률(my_team 관점, 반이닝 종료 시점)과 그 반이닝 최고 LI. "
+                    + "actual 은 실제 경기 전체, simulated 는 분기한 반이닝부터 지금까지(분기 전이면 빈 배열). "
+                    + "진행 중인 반이닝은 지금 값이다.")
+    @ApiErrorCodes({ErrorCode.SESSION_EXPIRED})
+    @GetMapping("/sessions/{sessionId}/we-trace")
+    public WeTraceResponse weTrace(@PathVariable String sessionId) {
+        return weTraceService.trace(sessionId);
+    }
+
+    @Operation(summary = "결과 화면",
+            description = "세션 시작 지점부터의 시뮬레이션 vs 실제 경기 비교: 점수, 내준 점수, 최종 승률, 투수 운용, "
+                    + "결정 비교 테이블(내 팀 수비 타석마다 한 줄), 실제 감독과 같은 선택 횟수, 불펜 사용 수. "
+                    + "경기 도중에도 호출할 수 있고 그때 result 는 in_progress. 모델 순위 필드는 밴딧 연결 전까지 null.")
+    @ApiErrorCodes({ErrorCode.SESSION_EXPIRED})
+    @GetMapping("/sessions/{sessionId}/result")
+    public ResultResponse result(@PathVariable String sessionId) {
+        return resultService.result(sessionId);
     }
 }

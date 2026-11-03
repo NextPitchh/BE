@@ -71,7 +71,7 @@ public class SessionService {
         List<GameBattingOrder> orders = battingOrders.findByGame(game.getId());
         ActualGame actual = new ActualGame(game.getAwayTeam(), game.getHomeTeam(),
                 gamePas.findByGame(game.getId()).stream().map(ActualPa::of).toList(),
-                orders.stream().map(LineupEntry::of).toList());
+                orders.stream().map(LineupEntry::of).toList(), game.getFinalAway(), game.getFinalHome());
         SimState initial = InitialStateFactory.build(actual, myTeamIsAway, startInning);
         Set<Integer> myBullpen = bullpens.findByGameAndTeam(game.getId(), myTeam).stream()
                 .map(GameBullpen::getPitcherId)
@@ -82,6 +82,20 @@ public class SessionService {
                 RANDOM.nextLong(), starterPositions(orders), actual, myBullpen, initial, Instant.now());
         store.save(session);
         return new SessionStateResponse(assembler.toResponse(session));
+    }
+
+    /**
+     * 명세 §3-8. 직전 상태로 되돌린다. 단위는 타석 1회, 자동 진행한 공격 반이닝은 통째로.
+     * 상태를 통째로 되돌리므로 분기 전으로 돌아가면 is_diverged 도 false 가 된다.
+     */
+    public SessionStateResponse undo(String sessionId) {
+        GameSession session = get(sessionId);
+        synchronized (session) {
+            if (!session.undo()) {
+                throw new BusinessException(ErrorCode.CANNOT_UNDO);
+            }
+            return new SessionStateResponse(assembler.toResponse(session));
+        }
     }
 
     /** 세션 조회. 없거나 만료됐으면 SESSION_EXPIRED */

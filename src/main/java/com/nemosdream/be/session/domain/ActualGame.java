@@ -7,10 +7,12 @@ import java.util.List;
 /**
  * 한 경기의 실제 기록 (세션이 메모리에 들고 있으며 분기 전 재생에 쓴다).
  *
- * @param pas     실제 타석 전부 (pa_index 순, 리스트 index == pa_index)
- * @param lineups 타순 자리를 거쳐 간 타자 전부
+ * @param pas        실제 타석 전부 (pa_index 순, 리스트 index == pa_index)
+ * @param lineups    타순 자리를 거쳐 간 타자 전부
+ * @param finalAway  실제 최종 점수 (연장 포함, games 테이블)
  */
-public record ActualGame(String awayTeam, String homeTeam, List<ActualPa> pas, List<LineupEntry> lineups) {
+public record ActualGame(String awayTeam, String homeTeam, List<ActualPa> pas, List<LineupEntry> lineups,
+                         int finalAway, int finalHome) {
 
     public ActualGame {
         pas = List.copyOf(pas);
