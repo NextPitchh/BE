@@ -72,7 +72,7 @@ public final class InitialStateFactory {
 
         return new SimState(first.inning(), myDefense, first.outs(), Bases.of(first.baseState()),
                 first.scoreAway(), first.scoreHome(), linescore, away, home,
-                pitcherDays(before), batterDays, t0, null, false, List.of());
+                pitcherDays(game, before), batterDays, t0, null, false, List.of());
     }
 
     /** 한 팀의 시점 t0 상태. battingHalf = 이 팀이 공격하는 반이닝 */
@@ -98,13 +98,15 @@ public final class InitialStateFactory {
         return new TeamSide(lineup, nextSlot, pitcherId, hits, walks);
     }
 
-    /** 투수별 상대 타자 수(끝난 타석)와 투구 수(마지막 타석 기준 누적) */
-    private static Map<Integer, PitcherDay> pitcherDays(List<ActualPa> before) {
+    /** 투수별 상대 타자 수(끝난 타석), 투구 수(마지막 타석 기준 누적), 아웃·피안타·볼넷 */
+    private static Map<Integer, PitcherDay> pitcherDays(ActualGame game, List<ActualPa> before) {
         Map<Integer, PitcherDay> days = new HashMap<>();
         for (ActualPa p : before) {
-            PitcherDay prev = days.getOrDefault(p.pitcherId(), new PitcherDay(0, 0));
-            days.put(p.pitcherId(), new PitcherDay(prev.paFaced() + (p.partial() ? 0 : 1),
-                    p.pitchCountBefore() + p.pitchesInPa()));
+            PitcherDay prev = days.getOrDefault(p.pitcherId(), PitcherDay.NONE);
+            boolean result = !p.partial();
+            days.put(p.pitcherId(), prev.plus(result ? 1 : 0, p.pitchCountBefore() + p.pitchesInPa(),
+                    game.outsRecordedAt(p.paIndex()), result && HITS.contains(p.result()),
+                    result && "BB".equals(p.result())));
         }
         return days;
     }

@@ -4,6 +4,7 @@ import com.nemosdream.be.global.error.ApiErrorCodes;
 import com.nemosdream.be.global.error.ErrorCode;
 import com.nemosdream.be.session.dto.AdvanceHalfResponse;
 import com.nemosdream.be.session.dto.CreateSessionRequest;
+import com.nemosdream.be.session.dto.RecommendResponse;
 import com.nemosdream.be.session.dto.ResultResponse;
 import com.nemosdream.be.session.dto.SessionStateResponse;
 import com.nemosdream.be.session.dto.SimulatePaRequest;
@@ -11,6 +12,7 @@ import com.nemosdream.be.session.dto.SimulatePaResponse;
 import com.nemosdream.be.session.dto.WeTraceResponse;
 import com.nemosdream.be.session.service.HalfInningService;
 import com.nemosdream.be.session.service.PlateAppearanceService;
+import com.nemosdream.be.session.service.RecommendService;
 import com.nemosdream.be.session.service.ResultService;
 import com.nemosdream.be.session.service.SessionService;
 import com.nemosdream.be.session.service.WeTraceService;
@@ -34,15 +36,17 @@ public class SessionController {
     private final HalfInningService halfInningService;
     private final WeTraceService weTraceService;
     private final ResultService resultService;
+    private final RecommendService recommendService;
 
     public SessionController(SessionService sessionService, PlateAppearanceService plateAppearanceService,
                              HalfInningService halfInningService, WeTraceService weTraceService,
-                             ResultService resultService) {
+                             ResultService resultService, RecommendService recommendService) {
         this.sessionService = sessionService;
         this.plateAppearanceService = plateAppearanceService;
         this.halfInningService = halfInningService;
         this.weTraceService = weTraceService;
         this.resultService = resultService;
+        this.recommendService = recommendService;
     }
 
     @Operation(summary = "세션 시작",
@@ -104,5 +108,15 @@ public class SessionController {
     @GetMapping("/sessions/{sessionId}/result")
     public ResultResponse result(@PathVariable String sessionId) {
         return resultService.result(sessionId);
+    }
+
+    @Operation(summary = "교체 후보 추천",
+            description = "지금 상황의 LI·밴드·리그 백분위와 교체 후보 목록. 현재 투수는 current_pitcher 로 분리하고 점수를 넣지 않는다. "
+                    + "후보는 내 팀 경기 전 불펜 명단이고, 이미 등판한 투수는 availability: used 로 목록에 남긴다. "
+                    + "밴딧 연결 전에는 source: mock, model_score·model_rank 가 null 이고 순서는 quality 내림차순(임시).")
+    @ApiErrorCodes({ErrorCode.SESSION_EXPIRED, ErrorCode.INVALID_ROLE, ErrorCode.NO_AVAILABLE_PITCHER})
+    @PostMapping("/sessions/{sessionId}/recommend")
+    public RecommendResponse recommend(@PathVariable String sessionId) {
+        return recommendService.recommend(sessionId);
     }
 }

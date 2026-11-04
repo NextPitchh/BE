@@ -29,10 +29,12 @@ import org.springframework.test.web.servlet.ResultActions;
         "file:etl/schema/07_batter_game_stats.sql",
         "file:etl/schema/08_matchups.sql",
         "file:etl/schema/09_outcome_counts.sql",
+        "file:etl/schema/05_li_percentile.sql",
         "classpath:sql/fixture-session.sql",
-        "classpath:sql/fixture-we-li.sql"
+        "classpath:sql/fixture-we-li.sql",
+        "classpath:sql/fixture-li-percentile.sql"
 })
-@Sql(statements = "DROP TABLE IF EXISTS outcome_counts, league_outcome_rates, matchups, batter_game_stats, "
+@Sql(statements = "DROP TABLE IF EXISTS li_percentile, outcome_counts, league_outcome_rates, matchups, batter_game_stats, "
         + "pitcher_game_stats, we_li_table, game_bullpen, "
         + "game_batting_order, game_pa, games, players, teams CASCADE",
         executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD)
@@ -327,6 +329,77 @@ class SessionApiTest extends PostgresTestSupport {
     private ResultActions result(String sessionId) throws Exception {
         return mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders
                 .get("/api/v1/sessions/" + sessionId + "/result"));
+    }
+
+    @Test
+    void 추천은_현재_투수를_분리하고_불펜_명단을_후보로_준다() throws Exception {
+        String sid = sessionId();
+        recommend(sid)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.leverage_index").value(closeTo(0.159, 1e-3)))
+                .andExpect(jsonPath("$.leverage_band").value("저"))
+                .andExpect(jsonPath("$.li_percentile").value(1))          // fixture-li-percentile: 0.16 → 16 / 10
+                .andExpect(jsonPath("$.li_max").value(5.0))
+                .andExpect(jsonPath("$.source").value("mock"))
+                .andExpect(jsonPath("$.current_pitcher.pitcher.pitcher_id").value(60002))
+                .andExpect(jsonPath("$.current_pitcher.this_outing.pitches").value(6))
+                // 60002 의 타석(4회초)이 그 반이닝 마지막 실제 타석 → 남은 아웃 3개를 그 투수가 잡은 것으로 센다
+                .andExpect(jsonPath("$.current_pitcher.this_outing.outs").value(3))
+                .andExpect(jsonPath("$.current_pitcher.this_outing.hits_allowed").value(1))
+                .andExpect(jsonPath("$.current_pitcher.pitcher.model_score").doesNotExist())
+                // 선발 60001 은 경기 전 불펜 명단이 아니라 후보가 아니다
+                .andExpect(jsonPath("$.candidates[*].pitcher.pitcher_id").value(
+                        org.hamcrest.Matchers.containsInAnyOrder(60003, 60004)))
+                .andExpect(jsonPath("$.candidates[0].pitcher.availability").value("available"))
+                .andExpect(jsonPath("$.candidates[0].pitcher.model_score").value(nullValue()))
+                .andExpect(jsonPath("$.candidates[0].pitcher.model_rank").value(nullValue()))
+                .andExpect(jsonPath("$.candidates[0].pitcher.role").value("bullpen"))
+                .andExpect(jsonPath("$.bullpen_summary.available").value(2))
+                .andExpect(jsonPath("$.bullpen_summary.used").value(0))
+                .andExpect(jsonPath("$.bullpen_source").value("actual"))
+                .andExpect(jsonPath("$.actual_decision.pitcher_id").value(60003))
+                .andExpect(jsonPath("$.actual_decision.was_change").value(true));
+    }
+
+    @Test
+    void 등판한_투수는_used_로_뒤에_남고_점수가_없다() throws Exception {
+        String sid = sessionId();
+        simulate(sid, 60003);                       // 실제 재생: 60002 → 60003 교체
+        recommend(sid)
+                .andExpect(jsonPath("$.current_pitcher.pitcher.pitcher_id").value(60003))
+                .andExpect(jsonPath("$.current_pitcher.this_outing.pitches").value(4))
+                .andExpect(jsonPath("$.current_pitcher.this_outing.outs").value(1))
+                .andExpect(jsonPath("$.candidates[*].pitcher.pitcher_id").value(contains(60004, 60002)))
+                .andExpect(jsonPath("$.candidates[1].pitcher.availability").value("used"))
+                .andExpect(jsonPath("$.candidates[1].pitcher.unavailable_reason").value("이미 등판"))
+                .andExpect(jsonPath("$.candidates[1].pitcher.model_score").value(nullValue()))
+                .andExpect(jsonPath("$.bullpen_summary.used").value(1));
+    }
+
+    @Test
+    void 불펜을_다_쓰면_NO_AVAILABLE_PITCHER_분기_후에는_실제_선택이_없다() throws Exception {
+        String sid = sessionId();
+        simulate(sid, 60004);                       // 분기
+        recommend(sid).andExpect(jsonPath("$.actual_decision").value(nullValue()));
+        simulate(sid, 60003);                       // 0아웃 시작이라 2타석으로는 3아웃이 안 된다
+        recommend(sid)
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.error.code").value("NO_AVAILABLE_PITCHER"));
+    }
+
+    @Test
+    void 공격_중에는_추천하지_않는다() throws Exception {
+        String sid = sessionId();
+        simulate(sid, 60003);
+        simulate(sid, 60003);
+        simulate(sid, 60003);
+        recommend(sid)
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.code").value("INVALID_ROLE"));
+    }
+
+    private ResultActions recommend(String sessionId) throws Exception {
+        return mockMvc.perform(post("/api/v1/sessions/" + sessionId + "/recommend"));
     }
 
     private String outcome(ResultActions result) throws Exception {

@@ -3,6 +3,7 @@ package com.nemosdream.be.session.service;
 import com.nemosdream.be.game.entity.Game;
 import com.nemosdream.be.game.entity.GameBattingOrder;
 import com.nemosdream.be.game.entity.GameBullpen;
+import com.nemosdream.be.game.entity.GamePa;
 import com.nemosdream.be.game.repository.GameBattingOrderRepository;
 import com.nemosdream.be.game.repository.GameBullpenRepository;
 import com.nemosdream.be.game.repository.GamePaRepository;
@@ -69,9 +70,11 @@ public class SessionService {
         }
 
         List<GameBattingOrder> orders = battingOrders.findByGame(game.getId());
+        List<GamePa> rows = gamePas.findByGame(game.getId());
         ActualGame actual = new ActualGame(game.getAwayTeam(), game.getHomeTeam(),
-                gamePas.findByGame(game.getId()).stream().map(ActualPa::of).toList(),
-                orders.stream().map(LineupEntry::of).toList(), game.getFinalAway(), game.getFinalHome());
+                rows.stream().map(ActualPa::of).toList(), orders.stream().map(LineupEntry::of).toList(),
+                game.getFinalAway(), game.getFinalHome(),
+                rows.isEmpty() ? "estimated" : rows.getFirst().getBullpenSource());
         SimState initial = InitialStateFactory.build(actual, myTeamIsAway, startInning);
         Set<Integer> myBullpen = bullpens.findByGameAndTeam(game.getId(), myTeam).stream()
                 .map(GameBullpen::getPitcherId)

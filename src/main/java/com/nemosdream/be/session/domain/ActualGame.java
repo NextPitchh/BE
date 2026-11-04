@@ -10,9 +10,10 @@ import java.util.List;
  * @param pas        실제 타석 전부 (pa_index 순, 리스트 index == pa_index)
  * @param lineups    타순 자리를 거쳐 간 타자 전부
  * @param finalAway  실제 최종 점수 (연장 포함, games 테이블)
+ * @param bullpenSource 불펜 명단 출처: "actual" (경기 전 실제 명단) | "estimated" (추정). 2025 는 전부 actual
  */
 public record ActualGame(String awayTeam, String homeTeam, List<ActualPa> pas, List<LineupEntry> lineups,
-                         int finalAway, int finalHome) {
+                         int finalAway, int finalHome, String bullpenSource) {
 
     public ActualGame {
         pas = List.copyOf(pas);
@@ -35,5 +36,15 @@ public record ActualGame(String awayTeam, String homeTeam, List<ActualPa> pas, L
                     .batterId());
         }
         return lineup;
+    }
+
+    /** 실제 행 index 에서 잡은 아웃 수 = 다음 행 아웃 - 이 행 아웃 (반이닝이 끝났으면 3 - 이 행 아웃) */
+    public int outsRecordedAt(int index) {
+        ActualPa row = pas.get(index);
+        ActualPa next = index + 1 < pas.size() ? pas.get(index + 1) : null;
+        if (next != null && next.sameHalfAs(row)) {
+            return Math.max(0, next.outs() - row.outs());
+        }
+        return next != null || row.inningEnded() ? 3 - row.outs() : 0;
     }
 }
