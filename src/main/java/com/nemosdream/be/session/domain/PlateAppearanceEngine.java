@@ -94,9 +94,10 @@ public final class PlateAppearanceEngine {
 
         Map<Integer, PitcherDay> pitcherDays = new HashMap<>(s.pitcherDays());
         for (ActualPa row : unit.rows()) {
-            PitcherDay prev = s.pitcherDay(row.pitcherId());
-            pitcherDays.put(row.pitcherId(), new PitcherDay(prev.paFaced() + (row.partial() ? 0 : 1),
-                    row.pitchCountBefore() + row.pitchesInPa()));
+            PitcherDay prev = pitcherDays.getOrDefault(row.pitcherId(), PitcherDay.NONE);
+            boolean result = !row.partial();
+            pitcherDays.put(row.pitcherId(), prev.plus(result ? 1 : 0, row.pitchCountBefore() + row.pitchesInPa(),
+                    game.outsRecordedAt(row.paIndex()), result && outcome.isHit(), result && outcome == PaOutcome.WALK));
         }
         Map<Integer, BatterDay> batterDays = withBatterDay(s, r.batterId(), outcome, r.runsScored());
 
@@ -162,7 +163,8 @@ public final class PlateAppearanceEngine {
 
         Map<Integer, PitcherDay> pitcherDays = new HashMap<>(s.pitcherDays());
         PitcherDay prev = s.pitcherDay(pitcherId);
-        pitcherDays.put(pitcherId, new PitcherDay(prev.paFaced() + 1, prev.pitches() + pitchesPerPa));
+        pitcherDays.put(pitcherId, prev.plus(1, prev.pitches() + pitchesPerPa, adv.outs() - s.outs(),
+                outcome.isHit(), outcome == PaOutcome.WALK));
         Map<Integer, BatterDay> batterDays = withBatterDay(s, batterId, outcome, runs);
 
         TeamSide batting = s.batting();
@@ -216,7 +218,8 @@ public final class PlateAppearanceEngine {
 
         Map<Integer, PitcherDay> pitcherDays = new HashMap<>(s.pitcherDays());
         PitcherDay prev = s.pitcherDay(row.pitcherId());
-        pitcherDays.put(row.pitcherId(), new PitcherDay(prev.paFaced(), row.pitchCountBefore() + row.pitchesInPa()));
+        pitcherDays.put(row.pitcherId(), prev.plus(0, row.pitchCountBefore() + row.pitchesInPa(),
+                game.outsRecordedAt(t), false, false));
 
         int awayAfter = nextRow != null ? nextRow.scoreAway() : s.scoreAway() + (row.half().awayBats() ? row.runsScored() : 0);
         int homeAfter = nextRow != null ? nextRow.scoreHome() : s.scoreHome() + (row.half().awayBats() ? 0 : row.runsScored());

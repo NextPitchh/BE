@@ -112,19 +112,22 @@ public class GameStateAssembler {
 
     PitcherResponse pitcher(String gameId, SimState s, int pitcherId, Player p) {
         PitcherCardStats card = pitcherStats.getCardStats(gameId, List.of(pitcherId)).get(pitcherId);
-        PitcherDay day = s.pitcherDay(pitcherId);
+        return new PitcherResponse(pitcherId, p == null ? null : p.getName(), p == null ? null : p.getThrows(),
+                p == null ? null : p.getPhotoUrl(),
+                card == null ? null : card.season(), card == null ? null : card.vsBatterHand(),
+                workload(s.pitcherDay(pitcherId), card), "current", null);
+    }
+
+    /** 오늘 기록(PitcherDay) + 경기 전 피로도(카드) → 명세 workload */
+    static PitcherResponse.Workload workload(PitcherDay day, PitcherCardStats card) {
         Fatigue f = card == null ? null : card.fatigue();
-        PitcherResponse.Workload workload = new PitcherResponse.Workload(
+        return new PitcherResponse.Workload(
                 day.paFaced(), (int) Math.round(day.pitches()),
                 f == null ? null : f.avgPitchesPerPa(),
                 f == null ? null : f.daysRest(),
                 f == null ? 0 : f.appearancesLast7d(),
                 f == null ? 0 : f.consecutiveDays(),
                 f == null ? 0 : f.pitchesLast3d());
-        return new PitcherResponse(pitcherId, p == null ? null : p.getName(), p == null ? null : p.getThrows(),
-                p == null ? null : p.getPhotoUrl(),
-                card == null ? null : card.season(), card == null ? null : card.vsBatterHand(),
-                workload, "current", null);
     }
 
     private BatterResponse batter(GameSession session, SimState s, int batterId, int slot, Player p,

@@ -82,7 +82,7 @@ class PlateAppearanceEngineTest {
                 new Decision(7, Half.TOP, 0, "0", 60009, 60002, true), new DivergedAt(7, Half.TOP, 50));
 
         SimState n = step.next();
-        assertThat(n.pitcherDay(60009)).isEqualTo(new PitcherDay(1, 3.8));
+        assertThat(n.pitcherDay(60009)).isEqualTo(new PitcherDay(1, 3.8, 0, 1, 0));   // 2루타: 아웃 0, 피안타 1
         assertThat(n.currentPitcherId()).isEqualTo(60009);
         assertThat(n.batterDay(51001)).isEqualTo(new BatterDay(1, 1, 0, List.of("2B")));
         assertThat(n.batting().nextSlot()).isEqualTo(2);
@@ -121,7 +121,7 @@ class PlateAppearanceEngineTest {
         List<ActualPa> pas = List.of(
                 new ActualPa(0, 5, Half.TOP, 2, "1", 0, 1, 51003, 60001, 3, "UNK", null, 0, 10, 2, true, true),
                 new ActualPa(1, 5, Half.BOT, 0, "0", 0, 1, 52001, 61001, 1, "1B", null, 0, 30, 4, false, false));
-        var game = new com.nemosdream.be.session.domain.ActualGame("HH", "KT", pas, lineups(), 1, 0);
+        var game = new com.nemosdream.be.session.domain.ActualGame("HH", "KT", pas, lineups(), 1, 0, "actual");
         SimState s = new SimState(5, Half.TOP, 2, Bases.of("1"), 1, 0, Linescore.empty().add(5, Half.TOP, 0),
                 new TeamSide(AWAY_LINEUP, 3, AWAY_PITCHER, 0, 0), new TeamSide(HOME_LINEUP, 4, 60001, 0, 0),
                 Map.of(), Map.of(), 0, null, false, List.of());

@@ -63,6 +63,10 @@ public class GamePa {
     @Column(name = "inning_ended")
     private boolean inningEnded;
 
+    /** 'actual' = 경기 전 실제 불펜 명단, 'estimated' = 추정 명단 */
+    @Column(name = "bullpen_source")
+    private String bullpenSource;
+
     protected GamePa() {
     }
 
@@ -136,5 +140,9 @@ public class GamePa {
 
     public boolean isInningEnded() {
         return inningEnded;
+    }
+
+    public String getBullpenSource() {
+        return bullpenSource;
     }
 }

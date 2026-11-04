@@ -60,7 +60,7 @@ class InMemorySessionStoreTest {
         SimState state = new SimState(5, Half.TOP, 0, Bases.EMPTY, 0, 0, Linescore.empty(), side, side,
                 Map.of(), Map.of(), 6, null, false, List.of());
         return new GameSession(id, "g", LocalDate.of(2025, 6, 1), "KT", "HH", false, "play", 1L, Map.of(),
-                new ActualGame("HH", "KT", List.of(), List.of(), 0, 0), Set.of(), state, T0);
+                new ActualGame("HH", "KT", List.of(), List.of(), 0, 0, "actual"), Set.of(), state, T0);
     }
 
     static class MutableClock extends Clock {

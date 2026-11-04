@@ -79,7 +79,7 @@ public record SimState(
     }
 
     public PitcherDay pitcherDay(int pitcherId) {
-        return pitcherDays.getOrDefault(pitcherId, new PitcherDay(0, 0));
+        return pitcherDays.getOrDefault(pitcherId, PitcherDay.NONE);
     }
 
     public BatterDay batterDay(int batterId) {
