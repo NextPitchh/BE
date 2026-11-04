@@ -9,6 +9,9 @@ import static org.hamcrest.Matchers.nullValue;
 import static org.hamcrest.Matchers.startsWith;
 
 import com.nemosdream.be.support.PostgresTestSupport;
+import com.nemosdream.be.bandit.service.BanditRecommendationService;
+import java.util.Optional;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -17,6 +20,9 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -42,6 +48,15 @@ class SessionApiTest extends PostgresTestSupport {
 
     @Autowired
     MockMvc mockMvc;
+
+    @MockitoBean
+    BanditRecommendationService bandit;
+
+    @BeforeEach
+    void mockCandidateScores() {
+        when(bandit.score(any(), any(), any())).thenReturn(Optional.empty());
+        when(bandit.source(any())).thenReturn("mock");
+    }
 
     @Test
     void 시작_이닝의_내_팀_수비_첫_타석_직전_상태로_시작한다() throws Exception {

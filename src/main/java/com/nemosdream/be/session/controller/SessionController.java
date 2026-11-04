@@ -103,7 +103,7 @@ public class SessionController {
     @Operation(summary = "결과 화면",
             description = "세션 시작 지점부터의 시뮬레이션 vs 실제 경기 비교: 점수, 내준 점수, 최종 승률, 투수 운용, "
                     + "결정 비교 테이블(내 팀 수비 타석마다 한 줄), 실제 감독과 같은 선택 횟수, 불펜 사용 수. "
-                    + "경기 도중에도 호출할 수 있고 그때 result 는 in_progress. 모델 순위 필드는 밴딧 연결 전까지 null.")
+                    + "경기 도중에도 호출할 수 있고 그때 result 는 in_progress. 모델 순위 필드는 아직 null.")
     @ApiErrorCodes({ErrorCode.SESSION_EXPIRED})
     @GetMapping("/sessions/{sessionId}/result")
     public ResultResponse result(@PathVariable String sessionId) {
@@ -113,8 +113,8 @@ public class SessionController {
     @Operation(summary = "교체 후보 추천",
             description = "지금 상황의 LI·밴드·리그 백분위와 교체 후보 목록. 현재 투수는 current_pitcher 로 분리하고 점수를 넣지 않는다. "
                     + "후보는 내 팀 경기 전 불펜 명단이고, 이미 등판한 투수는 availability: used 로 목록에 남긴다. "
-                    + "밴딧 연결 전에는 source: mock, model_score·model_rank 가 null 이고 순서는 quality 내림차순(임시).")
-    @ApiErrorCodes({ErrorCode.SESSION_EXPIRED, ErrorCode.INVALID_ROLE, ErrorCode.NO_AVAILABLE_PITCHER})
+                    + "미사용 후보는 B1 점수 내림차순이며, 사용한 투수의 점수는 null 이다.")
+    @ApiErrorCodes({ErrorCode.SESSION_EXPIRED, ErrorCode.INVALID_ROLE, ErrorCode.NO_AVAILABLE_PITCHER, ErrorCode.MODEL_UNAVAILABLE})
     @PostMapping("/sessions/{sessionId}/recommend")
     public RecommendResponse recommend(@PathVariable String sessionId) {
         return recommendService.recommend(sessionId);

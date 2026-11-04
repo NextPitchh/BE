@@ -35,7 +35,7 @@ import org.springframework.stereotype.Service;
  * <pre>
  * 후보   = 내 팀 경기 전 불펜 명단(is_listed) 중 현재 투수가 아닌 투수
  * used   = 그중 이 경기에 이미 등판한 투수 (다시 못 나옴, 목록에는 남김, 점수 없음)
- * 순서   = model_score 내림차순 (밴딧 연결 전에는 quality 내림차순, 순위 null)
+ * 순서   = model_score 내림차순
  * </pre>
  */
 @Service
@@ -121,6 +121,10 @@ public class RecommendService {
                 assembler.pitcher(gameId, s, currentId, playerById.get(currentId)),
                 new RecommendResponse.ThisOuting((int) Math.round(today.pitches()), today.outs(),
                         today.hitsAllowed(), today.walks(), label(labels, currentId)));
+
+        if (session.current() != s) {
+            throw new BusinessException(ErrorCode.INVALID_REQUEST, "추천 중 경기 상태가 변경되었습니다. 다시 요청해 주세요.");
+        }
 
         return new RecommendResponse(round4(li), band(li), liPercentile.percentileOf(li),
                 config.leverage().max(), scorer.source(s), current, candidates,
