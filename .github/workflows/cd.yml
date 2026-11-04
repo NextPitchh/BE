@@ -56,11 +56,14 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            set -e
             IMAGE=${{ vars.DOCKER_IMAGE_NAME }}:${{ github.sha }}
             CONTAINER=nemosdream-be
+            NETWORK=nemosdream-internal
 
             # 1. 새 이미지 다운로드
             docker pull $IMAGE
+            docker network inspect $NETWORK > /dev/null 2>&1 || docker network create $NETWORK
 
             # 2. 기존 컨테이너 종료/삭제 (처음엔 없으니 에러 무시)
             docker stop $CONTAINER || true
@@ -76,15 +79,15 @@ jobs:
             if [ -n '${{ secrets.DB_URL }}' ]; then echo 'DB_URL=${{ secrets.DB_URL }}' >> $ENV_FILE; fi
             if [ -n '${{ secrets.DB_USERNAME }}' ]; then echo 'DB_USERNAME=${{ secrets.DB_USERNAME }}' >> $ENV_FILE; fi
             if [ -n '${{ secrets.DB_PASSWORD }}' ]; then echo 'DB_PASSWORD=${{ secrets.DB_PASSWORD }}' >> $ENV_FILE; fi
-            docker run -d --name $CONTAINER -p 8080:8080 --restart unless-stopped --env-file $ENV_FILE $IMAGE
+            echo 'AI_BASE_URL=http://nemosdream-ai:8000' >> $ENV_FILE
+            echo 'PA_MODEL=log5' >> $ENV_FILE
+            docker run -d --name $CONTAINER --network $NETWORK -p 8080:8080 --restart unless-stopped --env-file $ENV_FILE $IMAGE
 
-            # 4. 안 쓰는 이미지 정리 (EC2 디스크 꽉 차는 것 방지)
-            docker image prune -af
-
-            # 5. 헬스체크: 최대 50초 동안 /health 응답 확인
+            # 4. 헬스체크: 최대 50초 동안 /health 응답 확인
             for i in $(seq 1 10); do
               if curl -fs http://localhost:8080/health > /dev/null; then
                 echo "배포 성공"
+                docker image prune -af || echo "이미지 정리 실패"
                 exit 0
               fi
               sleep 5
