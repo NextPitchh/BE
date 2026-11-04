@@ -109,7 +109,8 @@ public class SessionController {
     @Operation(summary = "결과 화면",
             description = "세션 시작 지점부터의 시뮬레이션 vs 실제 경기 비교: 점수, 내준 점수, 최종 승률, 투수 운용, "
                     + "결정 비교 테이블(내 팀 수비 타석마다 한 줄), 실제 감독과 같은 선택 횟수, 불펜 사용 수. "
-                    + "경기 도중에도 호출할 수 있고 그때 result 는 in_progress. 모델 순위 필드는 아직 null.")
+                    + "경기 도중에도 호출할 수 있고 그때 result 는 in_progress. 모델 순위는 결정 직전 후보 안의 밴딧 순위로, "
+                    + "투수 유지 결정과 모델이 응답하지 않을 때는 null.")
     @ApiErrorCodes({ErrorCode.SESSION_EXPIRED})
     @GetMapping("/sessions/{sessionId}/result")
     public ResultResponse result(@PathVariable String sessionId) {

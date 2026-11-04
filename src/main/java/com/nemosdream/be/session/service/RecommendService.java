@@ -2,7 +2,6 @@ package com.nemosdream.be.session.service;
 
 import com.nemosdream.be.appconfig.properties.AppConfigProperties;
 import com.nemosdream.be.game.entity.GameBullpen;
-import com.nemosdream.be.game.repository.GameBullpenRepository;
 import com.nemosdream.be.global.error.BusinessException;
 import com.nemosdream.be.global.error.ErrorCode;
 import com.nemosdream.be.matchup.dto.MatchupLabel;
@@ -11,6 +10,7 @@ import com.nemosdream.be.pitcher.dto.PitcherCardStats;
 import com.nemosdream.be.pitcher.service.PitcherStatsService;
 import com.nemosdream.be.player.entity.Player;
 import com.nemosdream.be.player.repository.PlayerRepository;
+import com.nemosdream.be.session.domain.CandidateRanking;
 import com.nemosdream.be.session.domain.GameSession;
 import com.nemosdream.be.session.domain.PitcherDay;
 import com.nemosdream.be.session.domain.PlateAppearanceEngine;
@@ -42,7 +42,7 @@ import org.springframework.stereotype.Service;
 public class RecommendService {
 
     private final SessionService sessions;
-    private final GameBullpenRepository bullpens;
+    private final CandidateRankingService rankings;
     private final PlayerRepository players;
     private final PitcherStatsService pitcherStats;
     private final MatchupService matchups;
@@ -52,12 +52,12 @@ public class RecommendService {
     private final CandidateScorer scorer;
     private final AppConfigProperties config;
 
-    public RecommendService(SessionService sessions, GameBullpenRepository bullpens, PlayerRepository players,
+    public RecommendService(SessionService sessions, CandidateRankingService rankings, PlayerRepository players,
                             PitcherStatsService pitcherStats, MatchupService matchups,
                             LiPercentileService liPercentile, WinExpectancyCalculator winExpectancy,
                             GameStateAssembler assembler, CandidateScorer scorer, AppConfigProperties config) {
         this.sessions = sessions;
-        this.bullpens = bullpens;
+        this.rankings = rankings;
         this.players = players;
         this.pitcherStats = pitcherStats;
         this.matchups = matchups;
@@ -81,11 +81,11 @@ public class RecommendService {
         int currentId = s.currentPitcherId();
         int batterId = s.currentBatterId();
 
-        List<GameBullpen> listed = bullpens.findByGameAndTeam(gameId, session.myTeam()).stream()
-                .filter(b -> b.isListed() && b.getPitcherId() != currentId)
+        List<GameBullpen> listed = rankings.listed(session).stream()
+                .filter(b -> b.getPitcherId() != currentId)
                 .toList();
         List<Integer> ids = new ArrayList<>(listed.stream().map(GameBullpen::getPitcherId).toList());
-        List<Integer> available = ids.stream().filter(id -> !s.pitcherDays().containsKey(id)).toList();
+        List<Integer> available = CandidateRankingService.available(listed, s);
         if (available.isEmpty()) {
             throw new BusinessException(ErrorCode.NO_AVAILABLE_PITCHER);
         }
@@ -96,7 +96,8 @@ public class RecommendService {
                 .collect(Collectors.toMap(Player::getId, Function.identity()));
         Map<Integer, PitcherCardStats> cards = pitcherStats.getCardStats(gameId, all);
         Map<Integer, Optional<MatchupLabel>> labels = matchups.labelsVsBatter(gameId, all, batterId);
-        Optional<Map<Integer, Double>> scores = scorer.score(session, s, available);
+        Optional<CandidateRanking> ranking = rankings.rank(session, s, available);
+        Optional<Map<Integer, Double>> scores = ranking.map(CandidateRanking::scores);
 
         List<CandidatePitcher> availableRows = new ArrayList<>();
         List<CandidatePitcher> usedRows = new ArrayList<>();
@@ -130,7 +131,7 @@ public class RecommendService {
                 config.leverage().max(), scorer.source(s), current, candidates,
                 new RecommendResponse.BullpenSummary(availableRows.size(), usedRows.size(),
                         availableRows.size() + usedRows.size()),
-                session.actualGame().bullpenSource(), actualDecision(session, s, playerById));
+                session.actualGame().bullpenSource(), actualDecision(session, s, playerById, ranking));
     }
 
     /** 점수가 있으면 점수 내림차순 + 순위, 없으면 quality 내림차순 (순위 null) */
@@ -163,9 +164,10 @@ public class RecommendService {
                 score, null, card == null ? null : card.qualityPercentile(), label, role);
     }
 
-    /** 분기 전에만: 이번 타석 실제 감독이 올린 투수 */
+    /** 분기 전에만: 이번 타석 실제 감독이 올린 투수. model_rank 는 교체였을 때 그 시점 후보 안 순위 */
     private static RecommendResponse.ActualDecision actualDecision(GameSession session, SimState s,
-                                                                  Map<Integer, Player> playerById) {
+                                                                  Map<Integer, Player> playerById,
+                                                                  Optional<CandidateRanking> ranking) {
         if (s.isDiverged()) {
             return null;
         }
@@ -174,7 +176,7 @@ public class RecommendService {
                 .orElse(session.actualPas().get(s.nextActualPaIndex()).pitcherId());
         Player p = playerById.get(actualId);
         return new RecommendResponse.ActualDecision(actualId, p == null ? null : p.getName(),
-                actualId != s.currentPitcherId());
+                actualId != s.currentPitcherId(), ranking.map(r -> r.rankOf(actualId)).orElse(null));
     }
 
     /** /config 의 레버리지 밴드 라벨. 마지막 밴드 상한 이상이면 마지막 밴드 */

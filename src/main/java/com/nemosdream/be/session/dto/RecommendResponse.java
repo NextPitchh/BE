@@ -62,7 +62,10 @@ public record RecommendResponse(
     public record BullpenSummary(int available, int used, int total) {
     }
 
-    /** 실제 감독의 이번 타석 선택. 분기 후 null */
-    public record ActualDecision(int pitcherId, String name, boolean wasChange) {
+    /**
+     * 실제 감독의 이번 타석 선택. 분기 후 null.
+     * model_rank = 실제 감독이 올린 투수의 그 시점 후보 안 밴딧 순위 (명세 §4). 투수 유지거나 모델이 없으면 null
+     */
+    public record ActualDecision(int pitcherId, String name, boolean wasChange, Integer modelRank) {
     }
 }

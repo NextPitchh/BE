@@ -3,9 +3,12 @@ package com.nemosdream.be.session.domain;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayDeque;
+import java.util.Collections;
 import java.util.Deque;
+import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 /**
@@ -26,6 +29,8 @@ public class GameSession {
     private final ActualGame actualGame;
     private final Set<Integer> myBullpen;
     private final Deque<SimState> history = new ArrayDeque<>();
+    /** 상태별 밴딧 순위 (/recommend 와 결과 화면이 같은 값을 쓰고, 같은 상태로 모델을 두 번 부르지 않게) */
+    private final Map<SimState, CandidateRanking> rankings = Collections.synchronizedMap(new IdentityHashMap<>());
     private SimState current;
     private volatile Instant lastAccess;
 
@@ -80,6 +85,14 @@ public class GameSession {
         }
         current = history.pop();
         return true;
+    }
+
+    public Optional<CandidateRanking> cachedRanking(SimState s) {
+        return Optional.ofNullable(rankings.get(s));
+    }
+
+    public void cacheRanking(SimState s, CandidateRanking ranking) {
+        rankings.put(s, ranking);
     }
 
     /** 내 팀이 지금 수비 중인가 */
