@@ -402,6 +402,49 @@ class SessionApiTest extends PostgresTestSupport {
         return mockMvc.perform(post("/api/v1/sessions/" + sessionId + "/recommend"));
     }
 
+    @Test
+    void 같은_선택으로_반복은_재현되고_세션을_바꾸지_않는다() throws Exception {
+        String sid = sessionId();
+        simulate(sid, 60004);
+        String before = result(sid).andReturn().getResponse().getContentAsString();
+
+        String first = repeat(sid, "{\"n\": 30}")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.n").value(30))
+                .andExpect(jsonPath("$.better_than_actual_rate").exists())
+                .andExpect(jsonPath("$.final_we.median").exists())
+                .andExpect(jsonPath("$.actual.runs_allowed").value(1))      // 5회초 시작 HH 4점 → 최종 5점
+                .andReturn().getResponse().getContentAsString();
+        String second = repeat(sid, "{\"n\": 30}").andReturn().getResponse().getContentAsString();
+
+        org.assertj.core.api.Assertions.assertThat(withoutElapsed(second)).isEqualTo(withoutElapsed(first));
+        int total = com.jayway.jsonpath.JsonPath.<java.util.Map<String, Integer>>read(first, "$.runs_allowed.histogram")
+                .values().stream().mapToInt(Integer::intValue).sum();
+        org.assertj.core.api.Assertions.assertThat(total).isEqualTo(30);
+        org.assertj.core.api.Assertions.assertThat(result(sid).andReturn().getResponse().getContentAsString())
+                .isEqualTo(before);
+    }
+
+    @Test
+    void 반복_횟수는_1에서_500() throws Exception {
+        String sid = sessionId();
+        repeat(sid, "{\"n\": 0}")
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.error.message").value("n: n 은 1~500 입니다."));
+        mockMvc.perform(post("/api/v1/sessions/" + sid + "/repeat"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.n").value(100));
+    }
+
+    private ResultActions repeat(String sessionId, String body) throws Exception {
+        return mockMvc.perform(post("/api/v1/sessions/" + sessionId + "/repeat")
+                .contentType(MediaType.APPLICATION_JSON).content(body));
+    }
+
+    private static String withoutElapsed(String json) {
+        return json.replaceAll("\"elapsed_ms\":\\d+", "");
+    }
+
     private String outcome(ResultActions result) throws Exception {
         return com.jayway.jsonpath.JsonPath.read(result.andReturn().getResponse().getContentAsString(), "$.result.outcome");
     }

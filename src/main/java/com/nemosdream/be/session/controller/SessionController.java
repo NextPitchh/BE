@@ -5,6 +5,8 @@ import com.nemosdream.be.global.error.ErrorCode;
 import com.nemosdream.be.session.dto.AdvanceHalfResponse;
 import com.nemosdream.be.session.dto.CreateSessionRequest;
 import com.nemosdream.be.session.dto.RecommendResponse;
+import com.nemosdream.be.session.dto.RepeatRequest;
+import com.nemosdream.be.session.dto.RepeatResponse;
 import com.nemosdream.be.session.dto.ResultResponse;
 import com.nemosdream.be.session.dto.SessionStateResponse;
 import com.nemosdream.be.session.dto.SimulatePaRequest;
@@ -13,6 +15,7 @@ import com.nemosdream.be.session.dto.WeTraceResponse;
 import com.nemosdream.be.session.service.HalfInningService;
 import com.nemosdream.be.session.service.PlateAppearanceService;
 import com.nemosdream.be.session.service.RecommendService;
+import com.nemosdream.be.session.service.RepeatService;
 import com.nemosdream.be.session.service.ResultService;
 import com.nemosdream.be.session.service.SessionService;
 import com.nemosdream.be.session.service.WeTraceService;
@@ -37,16 +40,19 @@ public class SessionController {
     private final WeTraceService weTraceService;
     private final ResultService resultService;
     private final RecommendService recommendService;
+    private final RepeatService repeatService;
 
     public SessionController(SessionService sessionService, PlateAppearanceService plateAppearanceService,
                              HalfInningService halfInningService, WeTraceService weTraceService,
-                             ResultService resultService, RecommendService recommendService) {
+                             ResultService resultService, RecommendService recommendService,
+                             RepeatService repeatService) {
         this.sessionService = sessionService;
         this.plateAppearanceService = plateAppearanceService;
         this.halfInningService = halfInningService;
         this.weTraceService = weTraceService;
         this.resultService = resultService;
         this.recommendService = recommendService;
+        this.repeatService = repeatService;
     }
 
     @Operation(summary = "세션 시작",
@@ -118,5 +124,16 @@ public class SessionController {
     @PostMapping("/sessions/{sessionId}/recommend")
     public RecommendResponse recommend(@PathVariable String sessionId) {
         return recommendService.recommend(sessionId);
+    }
+
+    @Operation(summary = "같은 선택으로 n회 반복",
+            description = "세션 시작 지점부터 경기 끝까지 n번(기본 100) 다시 진행한다. 내 팀 투수는 반이닝마다 사용자가 고른 순서 "
+                    + "그대로이고 타석 결과만 주사위로 다시 뽑는다. 내준 점수 분포, 최종 승률 분포, 실제 경기보다 나았던 비율. "
+                    + "세션 상태는 바꾸지 않는다.")
+    @ApiErrorCodes({ErrorCode.SESSION_EXPIRED})
+    @PostMapping("/sessions/{sessionId}/repeat")
+    public RepeatResponse repeat(@PathVariable String sessionId,
+                                 @Valid @RequestBody(required = false) RepeatRequest request) {
+        return repeatService.repeat(sessionId, request == null ? 100 : request.nOrDefault());
     }
 }
