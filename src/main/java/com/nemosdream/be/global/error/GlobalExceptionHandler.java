@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.NoHandlerFoundException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /** 모든 예외를 명세 §8 형식의 ErrorResponse 로 바꾼다. */
@@ -64,8 +65,9 @@ public class GlobalExceptionHandler {
         return respond(ErrorCode.INVALID_REQUEST, "요청 본문을 읽을 수 없습니다.");
     }
 
-    @ExceptionHandler(NoResourceFoundException.class)
-    public ResponseEntity<ErrorResponse> handleNotFound(NoResourceFoundException e) {
+    /** 없는 경로. 정적 파일은 /static/** 만 찾으므로 그 밖의 경로는 NoHandlerFoundException 이 난다 */
+    @ExceptionHandler({NoResourceFoundException.class, NoHandlerFoundException.class})
+    public ResponseEntity<ErrorResponse> handleNotFound(Exception e) {
         return respond(ErrorCode.NOT_FOUND, ErrorCode.NOT_FOUND.message());
     }
 

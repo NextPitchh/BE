@@ -19,6 +19,16 @@ spring:
   jackson:
     # 명세의 JSON 키가 전부 snake_case (game_id, start_inning ...). 자바 필드는 camelCase 로 쓴다.
     property-naming-strategy: SNAKE_CASE
+  # 선수 사진 (명세 2-2: 자체 호스팅). src/main/resources/static/players/{id}.webp → /static/players/{id}.webp
+  # 사진은 시즌 중 거의 안 바뀌어서 브라우저가 7일 동안 다시 받지 않게 한다.
+  mvc:
+    static-path-pattern: /static/**
+  web:
+    resources:
+      cache:
+        cachecontrol:
+          max-age: 7d
+          cache-public: true
 
 server:
   # EC2 에서 Nginx(HTTPS) 뒤에 있을 때 원래 주소(https://도메인)를 알아내기 위함.
