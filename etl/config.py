@@ -25,7 +25,8 @@ SEASON = "2025"
 
 # 산출물 (DB 적재용 CSV, 선수 사진)
 OUTPUT_DIR = Path(__file__).resolve().parent / "output"
-PHOTO_DIR = OUTPUT_DIR / "players"
+# 사진은 스프링 정적 리소스로 바로 저장한다 → jar 에 포함되어 /static/players/{id}.webp 로 서빙 (git 에 올린다)
+PHOTO_DIR = Path(__file__).resolve().parents[1] / "src" / "main" / "resources" / "static" / "players"
 
 # 사진 원본 경로 (명세 2-2). 서빙은 자체 호스팅 경로로 한다.
 PHOTO_SOURCE_URL = "https://sports-phinf.pstatic.net/player/kbo/default/{player_id}.png?type=w150"

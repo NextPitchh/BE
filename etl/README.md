@@ -21,7 +21,7 @@ docker compose up -d
 | 순서 | 스크립트 | 만드는 것 | 원천 |
 |---|---|---|---|
 | 1 | `01_teams_players.py` | `output/teams.csv`, `output/players.csv` | `preview_full/2025/*.json` |
-| 2 | `02_player_photos.py` | `output/players/{id}.webp`, players.csv 의 `photo_url` | 네이버 선수 사진 |
+| 2 | `02_player_photos.py` | `src/main/resources/static/players/{id}.webp`, players.csv 의 `photo_url` | 네이버 선수 사진 |
 | 3 | `03_games_pa.py` | `output/games.csv`, `output/game_pa.csv` | `all_pa_with_li.parquet` + `pbp_full/2025` 중계 문구 |
 | 4 | `04_bullpen_lineup.py` | `output/game_bullpen.csv`, `output/game_batting_order.csv` | `all_game_bullpen.parquet` + game_pa.csv + preview 포지션 |
 | 5 | `05_we_li_table.py` | `output/we_li_table.csv` (상황 → WE·LI, 3,888행) | `kbo-pitcher-change-ai-` 의 WE·LI 계산 함수 |
@@ -47,7 +47,7 @@ DATABASE_URL=postgresql://kmb:kmb@localhost:5433/kmoneyball bash etl/load.sh
 ```
 
 - 01 을 다시 돌리면 `photo_url` 이 비워진다. 이어서 02 를 다시 돌리면 이미 받은 사진은 건너뛰고 `photo_url` 만 다시 채운다.
-- `output/` 은 git 에 올리지 않는다. 사진(`output/players/`)은 서버의 `/static/players/` 경로로 서빙한다.
+- `output/` 은 git 에 올리지 않는다. 사진은 `src/main/resources/static/players/` 에 바로 저장해 git 에 올리고, 서버 jar 에 포함되어 `/static/players/{id}.webp` 로 서빙된다 (명세 2-2: 자체 호스팅).
 
 ## 데이터 컨벤션 메모
 
