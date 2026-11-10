@@ -8,6 +8,7 @@ import java.util.List;
  * 명세 §2-1 GameState. 경기 진행 상태의 단일 소스.
  * score_diff = home - away, score_diff_attacker = 공격팀 - 수비팀 (프론트는 부호를 다시 바꾸지 않는다).
  * win_expectancy 는 my_team 관점이고 we_perspective 에 그 팀 코드를 적는다.
+ * home_team / away_team 은 이 경기의 홈·원정 팀 코드 (my_team / opponent_team 중 하나씩).
  */
 public record GameStateResponse(
         String sessionId,
@@ -22,6 +23,8 @@ public record GameStateResponse(
         int scoreDiffAttacker,
         String myTeam,
         String opponentTeam,
+        String homeTeam,
+        String awayTeam,
         String myRole,
         PitcherResponse currentPitcher,
         BatterResponse currentBatter,

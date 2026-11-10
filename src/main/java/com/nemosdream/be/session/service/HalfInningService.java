@@ -87,11 +87,13 @@ public class HalfInningService {
             List<Integer> batterIds = new ArrayList<>();
             List<PaOutcome> outcomes = new ArrayList<>();
             List<String> descriptions = new ArrayList<>();
+            List<Integer> runsScored = new ArrayList<>();
             List<Double> weTrace = new ArrayList<>(List.of(round4(winExpectancy.myTeamWe(session, start))));
             int hits = 0;
             List<PaTrace> trace = new ArrayList<>(start.trace());
 
             SimState s = start;
+            int myScoreBefore = myScore(session, start);
             for (int pa = 0; sameHalf(s, start) && !s.gameOver(); pa++) {
                 if (pa >= MAX_PA_PER_HALF) {
                     throw new IllegalStateException("반이닝이 끝나지 않습니다: " + sessionId);
@@ -121,10 +123,17 @@ public class HalfInningService {
                 descriptions.add(step.description());
                 hits += step.outcome().isHit() ? 1 : 0;
                 s = step.next();
+                runsScored.add(myScore(session, s) - myScoreBefore);
+                myScoreBefore = myScore(session, s);
                 weTrace.add(round4(winExpectancy.myTeamWe(session, s)));
             }
 
-            int myRuns = session.myTeamIsAway() ? s.scoreAway() - start.scoreAway() : s.scoreHome() - start.scoreHome();
+            int myRuns = myScore(session, s) - myScore(session, start);
+            // 마지막 타석 뒤 타석 아닌 기록으로 난 점수는 마지막 타석에 붙인다 (runs_scored 합 = runs)
+            int trailing = myScore(session, s) - myScoreBefore;
+            if (trailing != 0 && !runsScored.isEmpty()) {
+                runsScored.set(runsScored.size() - 1, runsScored.getLast() + trailing);
+            }
             session.advance(s.withTrace(trace));
 
             Map<Integer, Player> names = players.findAllById(batterIds).stream()
@@ -133,7 +142,8 @@ public class HalfInningService {
             for (int i = 0; i < outcomes.size(); i++) {
                 Player p = names.get(batterIds.get(i));
                 log.add(new AdvanceHalfResponse.PaLogEntry(batterIds.get(i), p == null ? null : p.getName(),
-                        outcomes.get(i), descriptions.get(i)));
+                        outcomes.get(i), descriptions.get(i), runsScored.get(i),
+                        round4(weTrace.get(i + 1) - weTrace.get(i))));
             }
             return new AdvanceHalfResponse(
                     new AdvanceHalfResponse.Summary(myRuns, hits, log, weTrace, simulated ? "simulated" : "actual"),
@@ -155,6 +165,10 @@ public class HalfInningService {
             return current;
         }
         return actualHalf.get(Math.min(k, actualHalf.size() - 1)).pitcherId();
+    }
+
+    private static int myScore(GameSession session, SimState s) {
+        return session.myTeamIsAway() ? s.scoreAway() : s.scoreHome();
     }
 
     private static boolean sameHalf(SimState s, SimState start) {

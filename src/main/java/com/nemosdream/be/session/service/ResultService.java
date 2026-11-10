@@ -187,7 +187,7 @@ public class ResultService {
             ResultResponse.Choice actualChoice = d.actualPitcherId() == null ? null
                     : new ResultResponse.Choice(d.actualPitcherId(), name.apply(d.actualPitcherId()),
                             r.map(x -> x.rankOf(d.actualPitcherId())).orElse(null));
-            rows.add(new ResultResponse.DecisionRow(d.inning(), d.half(), round4(t.leverageIndex()), top,
+            rows.add(new ResultResponse.DecisionRow(d.inning(), d.half(), d.outs(), d.baseState(), round4(t.leverageIndex()), top,
                     new ResultResponse.Choice(d.chosenPitcherId(), name.apply(d.chosenPitcherId()),
                             r.map(x -> x.rankOf(d.chosenPitcherId())).orElse(null)),
                     actualChoice, t.outcome(), round4(delta), d.changed()));
