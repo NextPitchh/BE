@@ -5,7 +5,7 @@ import java.util.List;
 
 /**
  * 명세 GET /sessions/{id}/result — 결과 화면. 비교 범위는 세션 시작 지점부터 끝(또는 지금)까지.
- * 모델 순위(model_top, model_rank, *_in_top3)는 밴딧 연결 전이라 null 이다.
+ * 모델 순위(model_top, model_rank)는 그 결정 직전 교체 후보 안의 밴딧 순위. 모델이 없거나 응답하지 않으면 null.
  */
 public record ResultResponse(
         Side simulated,
@@ -50,8 +50,17 @@ public record ResultResponse(
     public record Choice(int pitcherId, String name, Integer modelRank) {
     }
 
-    /** same_as_actual = 분기 전 결정 중 실제 감독과 같은 투수를 고른 횟수 */
-    public record Agreement(int totalDecisions, Integer mineInTop3, Integer actualInTop3, int sameAsActual) {
+    /**
+     * 결정 비교 요약.
+     *
+     * @param mineInTop3    내가 교체한 결정 중 고른 투수가 모델 상위 3위 안이었던 횟수 (분모 my_changes)
+     * @param actualInTop3  실제 감독이 교체한 결정(분기 전) 중 상위 3위 안이었던 횟수 (분모 actual_changes)
+     * @param sameAsActual  분기 전 결정 중 실제 감독과 같은 투수를 고른 횟수
+     * @param myChanges     추가 필드: 내가 투수를 바꾼 횟수
+     * @param actualChanges 추가 필드: 분기 전 결정 중 실제 감독이 투수를 바꾼 횟수
+     */
+    public record Agreement(int totalDecisions, Integer mineInTop3, Integer actualInTop3, int sameAsActual,
+                            int myChanges, int actualChanges) {
     }
 
     public record BullpenUsed(int mine, int actual, int total) {

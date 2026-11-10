@@ -325,6 +325,8 @@ class SessionApiTest extends PostgresTestSupport {
                 .andExpect(jsonPath("$.agreement.total_decisions").value(3))
                 .andExpect(jsonPath("$.agreement.same_as_actual").value(3))
                 .andExpect(jsonPath("$.agreement.mine_in_top3").value(nullValue()))
+                .andExpect(jsonPath("$.agreement.my_changes").value(1))
+                .andExpect(jsonPath("$.agreement.actual_changes").value(1))
                 .andExpect(jsonPath("$.bullpen_used.mine").value(3))      // 60001, 60002, 60003
                 .andExpect(jsonPath("$.bullpen_used.total").value(4));
     }
@@ -339,6 +341,70 @@ class SessionApiTest extends PostgresTestSupport {
                 .andExpect(jsonPath("$.decisions[1].actual_choice").value(nullValue()))
                 .andExpect(jsonPath("$.agreement.same_as_actual").value(0))
                 .andExpect(jsonPath("$.pitcher_usage[0].pitcher_id").value(60004));
+    }
+
+    /** 점수 = -pitcher_id → 번호가 작을수록 상위 (60003 이 1위, 60004 가 2위) */
+    private void scoreByLowerId() {
+        when(bandit.score(any(), any(), any())).thenAnswer(inv -> {
+            java.util.List<Integer> ids = inv.getArgument(2);
+            return Optional.of(ids.stream().collect(java.util.stream.Collectors.toMap(id -> id, id -> -id / 1e5)));
+        });
+        when(bandit.source(any())).thenReturn("live");
+    }
+
+    @Test
+    void 결과_화면의_모델_순위는_결정_직전_후보_안의_순위다() throws Exception {
+        scoreByLowerId();
+        String sid = sessionId();
+        recommend(sid);                            // 첫 결정 순위는 /recommend 때 저장한 값을 다시 쓴다
+        simulate(sid, 60003);                      // 교체: 후보 {60003, 60004} → 1위, 실제 감독도 60003
+        simulate(sid, 60003);                      // 유지: 후보 {60004}, 현재 투수는 후보가 아니라 순위 없음
+        simulate(sid, 60003);
+
+        result(sid)
+                .andExpect(jsonPath("$.decisions[0].model_top.pitcher_id").value(60003))
+                .andExpect(jsonPath("$.decisions[0].user_choice.model_rank").value(1))
+                .andExpect(jsonPath("$.decisions[0].actual_choice.model_rank").value(1))
+                .andExpect(jsonPath("$.decisions[1].model_top.pitcher_id").value(60004))
+                .andExpect(jsonPath("$.decisions[1].model_top.name").exists())
+                .andExpect(jsonPath("$.decisions[1].user_choice.model_rank").value(nullValue()))
+                .andExpect(jsonPath("$.decisions[1].actual_choice.model_rank").value(nullValue()))
+                .andExpect(jsonPath("$.agreement.total_decisions").value(3))
+                .andExpect(jsonPath("$.agreement.my_changes").value(1))
+                .andExpect(jsonPath("$.agreement.actual_changes").value(1))
+                .andExpect(jsonPath("$.agreement.mine_in_top3").value(1))
+                .andExpect(jsonPath("$.agreement.actual_in_top3").value(1));
+        // 결정 3개 직전 상태마다 한 번씩. 첫 상태는 /recommend 때 부른 값을 다시 쓴다
+        org.mockito.Mockito.verify(bandit, org.mockito.Mockito.times(3)).score(any(), any(), any());
+        result(sid);
+        org.mockito.Mockito.verify(bandit, org.mockito.Mockito.times(3)).score(any(), any(), any());
+    }
+
+    @Test
+    void 모델이_응답하지_않아도_결과_화면은_나오고_순위만_비운다() throws Exception {
+        when(bandit.score(any(), any(), any()))
+                .thenThrow(new com.nemosdream.be.global.error.BusinessException(
+                        com.nemosdream.be.global.error.ErrorCode.MODEL_UNAVAILABLE));
+        String sid = sessionId();
+        simulate(sid, 60004);
+        result(sid)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.decisions[0].model_top").value(nullValue()))
+                .andExpect(jsonPath("$.decisions[0].user_choice.model_rank").value(nullValue()))
+                .andExpect(jsonPath("$.agreement.my_changes").value(1))
+                .andExpect(jsonPath("$.agreement.mine_in_top3").value(nullValue()));
+    }
+
+    @Test
+    void 추천의_실제_감독_선택에_모델_순위를_준다() throws Exception {
+        scoreByLowerId();
+        String sid = sessionId();
+        recommend(sid)
+                .andExpect(jsonPath("$.source").value("live"))
+                .andExpect(jsonPath("$.candidates[*].pitcher.pitcher_id").value(contains(60003, 60004)))
+                .andExpect(jsonPath("$.candidates[1].pitcher.model_rank").value(2))
+                .andExpect(jsonPath("$.actual_decision.pitcher_id").value(60003))
+                .andExpect(jsonPath("$.actual_decision.model_rank").value(1));
     }
 
     private ResultActions result(String sessionId) throws Exception {
@@ -373,7 +439,8 @@ class SessionApiTest extends PostgresTestSupport {
                 .andExpect(jsonPath("$.bullpen_summary.used").value(0))
                 .andExpect(jsonPath("$.bullpen_source").value("actual"))
                 .andExpect(jsonPath("$.actual_decision.pitcher_id").value(60003))
-                .andExpect(jsonPath("$.actual_decision.was_change").value(true));
+                .andExpect(jsonPath("$.actual_decision.was_change").value(true))
+                .andExpect(jsonPath("$.actual_decision.model_rank").value(nullValue()));
     }
 
     @Test
