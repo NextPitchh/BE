@@ -4,8 +4,6 @@ import com.nemosdream.be.bandit.client.BanditClient;
 import com.nemosdream.be.bandit.dto.BanditPreparedRequest;
 import com.nemosdream.be.bandit.dto.BanditRecommendationResponse;
 import com.nemosdream.be.bandit.repository.BanditRepository;
-import com.nemosdream.be.global.error.BusinessException;
-import com.nemosdream.be.global.error.ErrorCode;
 import com.nemosdream.be.session.domain.GameSession;
 import com.nemosdream.be.session.domain.SimState;
 import com.nemosdream.be.session.service.CandidateScorer;
@@ -60,8 +58,6 @@ public class BanditRecommendationService implements CandidateScorer {
             log.error("B1 데이터 조회 실패",e);
             throw BanditRepository.dataError("B1 데이터 테이블 또는 연결을 확인해 주세요.");
         }
-        var result=client.recommend(prepared);
-        if (session.current()!=state) throw new BusinessException(ErrorCode.INVALID_REQUEST,"추천 중 경기 상태가 변경되었습니다. 다시 요청해 주세요.");
-        return result;
+        return client.recommend(prepared);
     }
 }
