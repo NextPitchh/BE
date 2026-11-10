@@ -101,6 +101,18 @@ public class SessionService {
         }
     }
 
+    /**
+     * 현재 상태 조회. 상태를 바꾸지 않는다 (세션 만료 시간만 연장).
+     * 진행 중인 변경 요청이 있으면 그 요청이 끝난 뒤의 상태를 준다. 변경 요청이 타임아웃 났을 때
+     * 서버에 반영됐는지 이걸로 확인하고 재시도 여부를 정한다.
+     */
+    public SessionStateResponse state(String sessionId) {
+        GameSession session = get(sessionId);
+        synchronized (session) {
+            return new SessionStateResponse(assembler.toResponse(session));
+        }
+    }
+
     /** 세션 조회. 없거나 만료됐으면 SESSION_EXPIRED */
     public GameSession get(String sessionId) {
         return store.find(sessionId).orElseThrow(() -> new BusinessException(ErrorCode.SESSION_EXPIRED));

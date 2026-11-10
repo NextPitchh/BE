@@ -65,6 +65,16 @@ public class SessionController {
         return sessionService.create(request);
     }
 
+    @Operation(summary = "현재 상태 조회",
+            description = "세션의 현재 GameState 를 준다. 상태는 바꾸지 않는다. 진행 중인 변경 요청(simulate-pa, "
+                    + "advance-half, undo)이 있으면 그 요청이 끝난 뒤의 상태다. 변경 요청이 응답 없이 타임아웃 났을 때 "
+                    + "이 값으로 서버 반영 여부를 확인한 뒤 재시도한다 (그냥 재시도하면 한 타석이 두 번 진행될 수 있다).")
+    @ApiErrorCodes({ErrorCode.SESSION_EXPIRED})
+    @GetMapping("/sessions/{sessionId}")
+    public SessionStateResponse state(@PathVariable String sessionId) {
+        return sessionService.state(sessionId);
+    }
+
     @Operation(summary = "타석 진행",
             description = "내 팀 수비 타석 하나를 진행한다. 현재 투수를 유지할 때도 현재 투수의 pitcher_id 를 보낸다. "
                     + "분기 전이고 실제 감독과 같은 투수면 실제 기록을 재생하고(source: actual), "

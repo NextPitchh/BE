@@ -38,9 +38,9 @@ public record ResultResponse(
 
     /**
      * 결정 비교 테이블 한 줄 = 내 팀 수비 타석 하나. is_change = 그 타석에서 투수를 바꿨나.
-     * actual_choice 는 분기 후 null (비교할 실제 기록이 없다).
+     * actual_choice 는 분기 후 null (비교할 실제 기록이 없다). out_count / base_state 는 그 타석 시작 직전 상황.
      */
-    public record DecisionRow(int inning, Half half, double leverageIndex, PitcherRef modelTop, Choice userChoice,
+    public record DecisionRow(int inning, Half half, int outCount, String baseState, double leverageIndex, PitcherRef modelTop, Choice userChoice,
                               Choice actualChoice, String outcome, double deltaWeDefender, boolean isChange) {
     }
 

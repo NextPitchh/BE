@@ -18,6 +18,12 @@ public record AdvanceHalfResponse(Summary summary, GameStateResponse state) {
     public record Summary(int runs, int hits, List<PaLogEntry> paLog, List<Double> weTrace, String source) {
     }
 
-    public record PaLogEntry(int batterId, String batter, PaOutcome outcome, String description) {
+    /**
+     * @param runsScored 이 타석으로 내 팀이 낸 점수. 직전 타석 이후 타석 아닌 기록(도루·폭투 등)으로 난 점수도 포함
+     *                   (그래서 pa_log 의 runs_scored 합 = summary.runs)
+     * @param deltaWe    my_team 관점 승률 변화 = we_trace[i+1] - we_trace[i]
+     */
+    public record PaLogEntry(int batterId, String batter, PaOutcome outcome, String description, int runsScored,
+                             double deltaWe) {
     }
 }
