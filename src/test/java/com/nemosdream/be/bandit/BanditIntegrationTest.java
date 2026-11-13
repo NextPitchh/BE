@@ -235,16 +235,16 @@ class BanditIntegrationTest {
 
     @Test
     void datasetAndLookupValidationFailClosed() {
-        repository.verifyDataset();
-        assertEquals(18155,jdbc.queryForObject("select count(*) from bandit_pitcher_snapshots",Integer.class));
-        assertEquals(3888,jdbc.queryForObject("select count(*) from bandit_train_li_lookup",Integer.class));
-        assertEquals(repository.trainLi(5,"top",0,"0",4),repository.trainLi(5,"top",0,"0",100));
+        repository.verifyDataset(GAME);
+        assertEquals(18155,jdbc.queryForObject("select count(*) from bandit_pitcher_snapshots where version=?",Integer.class,BanditRepository.VERSION));
+        assertEquals(3888,jdbc.queryForObject("select count(*) from bandit_train_li_lookup where version=?",Integer.class,BanditRepository.VERSION));
+        assertEquals(repository.trainLi(GAME,5,"top",0,"0",4),repository.trainLi(GAME,5,"top",0,"0",100));
         transaction.executeWithoutResult(status->{
             jdbc.update("delete from bandit_train_li_lookup where version=? and inning=1 and half='top' and out_count=0 and base_state='0' and score_diff_attacker=0",BanditRepository.VERSION);
-            assertThrows(BusinessException.class,repository::verifyDataset);
+            assertThrows(BusinessException.class,()->repository.verifyDataset(GAME));
             status.setRollbackOnly();
         });
-        repository.verifyDataset();
+        repository.verifyDataset(GAME);
         assertEquals("unchanged",jdbc.queryForObject("select value from b1_test_existing_data",String.class));
     }
 
