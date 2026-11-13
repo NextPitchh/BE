@@ -29,10 +29,10 @@ public class BanditFeatureAssembler {
     public BanditPreparedRequest assemble(GameSession session, SimState state) {
         if (state.gameOver()) throw new BusinessException(ErrorCode.INVALID_REQUEST,"종료된 경기입니다.");
         if (!session.isMyTeamFielding(state)) throw new BusinessException(ErrorCode.INVALID_ROLE);
-        if (session.gameId()==null || !session.gameId().matches("2025[0-9]{4}[A-Z]{4}[012]2025"))
-            throw new BusinessException(ErrorCode.INVALID_REQUEST,"B1은 2025 시즌 동결 데이터만 지원합니다.");
+        if (!BanditRepository.supports(session.gameId()))
+            throw new BusinessException(ErrorCode.INVALID_REQUEST,"B1은 2025 시즌과 2026 한국시리즈 데모 경기만 지원합니다.");
         if (state.inning()<1 || state.inning()>9) throw new BusinessException(ErrorCode.INVALID_REQUEST,"B1은 1~9회만 지원합니다.");
-        repository.verifyDataset();
+        repository.verifyDataset(session.gameId());
         List<BanditRoster> roster=repository.roster(session.gameId());
         Set<Integer> teamAll=new HashSet<>(), known=new HashSet<>(), listed=new HashSet<>();
         for (var r:roster) {
@@ -75,7 +75,7 @@ public class BanditFeatureAssembler {
         game.put("is_base3",state.bases().third()?1:0); game.put("is_home_defense",state.half().awayBats()?1:0);
         game.put("bullpen_available_ratio",(available.size()-1.0)/listed.size());
         game.put("n_pitchers_used",used.size()+1);
-        game.put("leverage_index",repository.trainLi(state.inning(),state.half().code(),state.outs(),
+        game.put("leverage_index",repository.trainLi(session.gameId(),state.inning(),state.half().code(),state.outs(),
                 state.bases().baseState(),state.scoreDiffAttacker()));
         return new BanditPreparedRequest(Map.of("game_state",game,"candidates",candidates),Set.copyOf(ids));
     }

@@ -36,7 +36,7 @@ class BanditFeatureAssemblerTest {
         when(repo.snapshots(anyString(),anyString())).thenReturn(List.of(
                 new BanditSnapshot(101,0,null,null,null,null,null,null),
                 new BanditSnapshot(102,1,0.1,null,0.1,0.2,0.0,4.0)));
-        when(repo.trainLi(5,"top",0,"0",-1)).thenReturn(1.25);
+        when(repo.trainLi("20250322HHKT02025",5,"top",0,"0",-1)).thenReturn(1.25);
         var state=state(Half.TOP,100,Map.of(100,new PitcherDay(1,1,0,0,0),102,new PitcherDay(1,2,0,0,0)));
         var prepared=new BanditFeatureAssembler(repo).assemble(session(state),state);
         assertEquals(java.util.Set.of("101"),prepared.candidateIds());
@@ -68,13 +68,32 @@ class BanditFeatureAssemblerTest {
                 new BanditRoster("HH",201,true)));
         when(repo.snapshots(anyString(),eq("HH"))).thenReturn(List.of(
                 new BanditSnapshot(201,0,null,null,null,null,null,null)));
-        when(repo.trainLi(5,"bot",0,"0",1)).thenReturn(0.75);
+        when(repo.trainLi("20250322HHKT02025",5,"bot",0,"0",1)).thenReturn(0.75);
         var s=state(Half.BOT,100,Map.of(200,new PitcherDay(1,1,0,0,0)));
         var session=new GameSession("s","20250322HHKT02025",LocalDate.of(2025,3,22),"HH","KT",true,"default",1,Map.of(),
                 new ActualGame("HH","KT",List.of(),List.of(),0,0,"actual"),Set.of(200,201),s,Instant.now());
         var game=(Map<?,?>)new BanditFeatureAssembler(repo).assemble(session,s).request().get("game_state");
         assertEquals(-1,game.get("score_diff_defense")); assertEquals(0,game.get("is_home_defense"));
         assertEquals(0.75,(double)game.get("leverage_index"),1e-12);
+    }
+
+    @Test
+    void demoGameUsesItsOwnDatasetAndOtherGamesAreRejected() {
+        var repo=mock(BanditRepository.class);
+        String demo=BanditRepository.DEMO_GAME_ID;
+        when(repo.roster(demo)).thenReturn(List.of(new BanditRoster("KT",100,false),new BanditRoster("KT",101,true)));
+        when(repo.snapshots(demo,"KT")).thenReturn(List.of(new BanditSnapshot(101,0,null,null,null,null,null,null)));
+        when(repo.trainLi(demo,5,"top",0,"0",-1)).thenReturn(1.5);
+        var s=state(Half.TOP,100,Map.of(100,new PitcherDay(1,1,0,0,0)));
+        var session=new GameSession("s",demo,LocalDate.of(2026,11,4),"KT","SS",false,"default",1,Map.of(),
+                new ActualGame("SS","KT",List.of(),List.of(),0,0,"actual"),Set.of(100,101),s,Instant.now());
+        var prepared=new BanditFeatureAssembler(repo).assemble(session,s);
+        assertEquals(Set.of("101"),prepared.candidateIds());
+        assertEquals(1.5,(double)((Map<?,?>)prepared.request().get("game_state")).get("leverage_index"),1e-12);
+        verify(repo).verifyDataset(demo);
+        assertTrue(BanditRepository.supports("20250322HHKT02025"));
+        for (String id:new String[]{"20261104SSKT02026","77771105SSKT02026","20240322HHKT02024",null})
+            assertFalse(BanditRepository.supports(id));
     }
 
     @Test
